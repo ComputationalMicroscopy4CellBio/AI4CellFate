@@ -7,9 +7,6 @@ def mse_loss(y_true, y_pred):
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, label_smoothing=0.001)
 cce = tf.keras.losses.CategoricalCrossentropy(from_logits=False)
 
-def z_mean_var_loss(z):
-    loss = tf.abs(tf.math.reduce_variance(z) - 1) + tf.abs(tf.math.reduce_mean(z))
-    return tf.reduce_mean(loss)
 
 ##### COVARIANCE LOSS #####
 def get_off_diag_values(x):
