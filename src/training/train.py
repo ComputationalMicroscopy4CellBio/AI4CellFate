@@ -5,6 +5,7 @@ import os
 import numpy as np
 from ..config import CONFIG
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
+from .loss_functions import *
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Training Configuration')
@@ -17,13 +18,6 @@ def parse_arguments():
     parser.add_argument('--lambda_recon', type=float, default=CONFIG.get('lambda_recon'))
     parser.add_argument('--lambda_adv', type=float, default=CONFIG.get('lambda_adv'))
     return parser.parse_args()
-
-#TODO: get loss functions from the loss functions file
-#TODO: add a different function for training the autoencoder only vs training the full model
-#TODO: add validation losses to all training functions
-#TODO: save the loss plot in results directory and save model weights
-#TODO: handling data, make sure x_train is always a numpy array (or tensor)
-#TODO: adapt the number of classes to the dataset (for now fix as 2)
 
 def convert_namespace_to_dict(config): # TEMPORARY: Helper function to convert Namespace to dictionary
     if isinstance(config, argparse.Namespace):
@@ -73,11 +67,11 @@ def train_model(config, x_train, save_loss_plot=True):
                 recon_imgs = decoder(z_imgs, training=True)[:, :, :, 0]
 
                 # Reconstruction loss
-                recon_loss = tf.reduce_mean(tf.square(image_batch - recon_imgs))
+                recon_loss = mse_loss(image_batch, recon_imgs)
 
                 # Adversarial loss for discriminator
                 z_discriminator_out = discriminator(z_imgs, training=True)
-                adv_loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)(real_y, z_discriminator_out)
+                adv_loss = bce_loss(real_y, z_discriminator_out)
 
                 # Total autoencoder loss
                 ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss
@@ -95,8 +89,8 @@ def train_model(config, x_train, save_loss_plot=True):
                 z_discriminator_out = discriminator(z_imgs, training=True)
                 rand_discriminator_out = discriminator(rand_vecs, training=True)
 
-                discriminator_loss = 0.5 * tf.keras.losses.BinaryCrossentropy(from_logits=True)(real_y, rand_discriminator_out) + \
-                                     0.5 * tf.keras.losses.BinaryCrossentropy(from_logits=True)(fake_y, z_discriminator_out)
+                discriminator_loss = 0.5 * bce_loss(real_y, rand_discriminator_out) + \
+                                     0.5 * bce_loss(fake_y, z_discriminator_out)
 
             # Update discriminator weights
             disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)

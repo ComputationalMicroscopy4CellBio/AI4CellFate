@@ -3,9 +3,11 @@ import tensorflow as tf
 def mse_loss(y_true, y_pred):
     return tf.reduce_mean(tf.square(y_true - y_pred))
 
-##### BCE and CCE Losses #####
-bce = tf.keras.losses.BinaryCrossentropy(from_logits=False, label_smoothing=0.001)
-cce = tf.keras.losses.CategoricalCrossentropy(from_logits=False)
+def bce_loss(y_true, y_pred):
+    return tf.keras.losses.BinaryCrossentropy(from_logits=False)(y_true, y_pred) # should I add label_smoothing=0.001?
+
+def cce_loss(y_true, y_pred):
+    return tf.keras.losses.CategoricalCrossentropy(from_logits=False)(y_true, y_pred)
 
 
 ##### COVARIANCE LOSS #####
