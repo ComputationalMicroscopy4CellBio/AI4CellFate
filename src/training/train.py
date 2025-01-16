@@ -14,6 +14,8 @@ def parse_arguments():
     parser.add_argument('--seed', type=int, default=CONFIG.get('seed'))
     parser.add_argument('--latent_dim', type=int, default=CONFIG.get('latent_dim'))
     parser.add_argument('--GaussianNoise_std', type=float, default=CONFIG.get('GaussianNoise_std'))
+    parser.add_argument('--lambda_recon', type=float, default=CONFIG.get('lambda_recon'))
+    parser.add_argument('--lambda_adv', type=float, default=CONFIG.get('lambda_adv'))
     return parser.parse_args()
 
 #TODO: get loss functions from the loss functions file
@@ -47,8 +49,8 @@ def train_model(config, x_train, save_loss_plot=True):
     discriminator = Discriminator(latent_dim=config['latent_dim']).model
 
     # Optimizers
-    ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'])
-    disc_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'])
+    ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
+    disc_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
 
     # Placeholder for storing losses
     reconstruction_losses = []
@@ -78,7 +80,7 @@ def train_model(config, x_train, save_loss_plot=True):
                 adv_loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)(real_y, z_discriminator_out)
 
                 # Total autoencoder loss
-                ae_loss = recon_loss + 0.05 * adv_loss
+                ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder (encoder + decoder)
@@ -101,8 +103,8 @@ def train_model(config, x_train, save_loss_plot=True):
             disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
 
             # Track individual losses for adjustment
-            epoch_reconstruction_losses.append(recon_loss)
-            epoch_adversarial_losses.append(adv_loss)
+            epoch_reconstruction_losses.append(config['lambda_recon'] * recon_loss)
+            epoch_adversarial_losses.append(config['lambda_adv'] * adv_loss)
 
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
@@ -171,20 +173,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-# This allows running the script directly or importing it elsewhere
-# if __name__ == '__main__': 
-#     #### TRY TO RUN IT IN cellfate.py
-#     x_train = np.random.randn(100, 20, 20)
-#     try:
-#         # Try parsing arguments if the script is run from the terminal
-#         args = parse_arguments()
-#     except SystemExit:
-#         # If parsing arguments fails (e.g., in a notebook), fall back to default config
-#         args = argparse.Namespace(
-#             batch_size=CONFIG.get('batch_size'),
-#             epochs=CONFIG.get('epochs'),
-#             learning_rate=CONFIG.get('learning_rate'),
-#             seed=CONFIG.get('seed'),
-#             latent_dim=CONFIG.get('latent_dim')
-#         )
-#     train_model(args, x_train)  # Call the training function with parsed arguments
