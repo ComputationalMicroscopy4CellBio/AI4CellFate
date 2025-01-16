@@ -1,19 +1,7 @@
 import argparse
 import tensorflow as tf
 import numpy as np
-
-# Placeholder for CONFIG if it's not provided
-try:
-    from config import CONFIG
-except ImportError:
-    CONFIG = {
-        'batch_size': 64,
-        'epochs': 100,
-        'learning_rate': 0.001,
-        'seed': 42,
-        'latent_dim': 128,
-    }
-
+from ..config import CONFIG
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 
 def parse_arguments():
@@ -40,14 +28,5 @@ def train_model(args):
 
 # This allows running the script directly or importing it elsewhere
 if __name__ == '__main__':
-    try:
-        args = parse_arguments()  # Parse arguments if running from command line
-    except SystemExit:  # If argparse fails, default values are used
-        args = argparse.Namespace(
-            batch_size=CONFIG['batch_size'],
-            epochs=CONFIG['epochs'],
-            learning_rate=CONFIG['learning_rate'],
-            seed=CONFIG['seed'],
-            latent_dim=CONFIG['latent_dim']
-        )
+    args = parse_arguments()  # Parse arguments if running from command line
     train_model(args)  # Call the training function with parsed arguments
