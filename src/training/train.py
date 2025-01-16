@@ -6,14 +6,16 @@ from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Training Configuration')
-    parser.add_argument('--batch_size', type=int, default=CONFIG.get('batch_size', 64))
-    parser.add_argument('--epochs', type=int, default=CONFIG.get('epochs', 100))
-    parser.add_argument('--learning_rate', type=float, default=CONFIG.get('learning_rate', 0.001))
-    parser.add_argument('--seed', type=int, default=CONFIG.get('seed', 42))
-    parser.add_argument('--latent_dim', type=int, default=CONFIG.get('latent_dim', 128))
+    parser.add_argument('--batch_size', type=int, default=CONFIG.get('batch_size'))
+    parser.add_argument('--epochs', type=int, default=CONFIG.get('epochs'))
+    parser.add_argument('--learning_rate', type=float, default=CONFIG.get('learning_rate'))
+    parser.add_argument('--seed', type=int, default=CONFIG.get('seed'))
+    parser.add_argument('--latent_dim', type=int, default=CONFIG.get('latent_dim'))
     return parser.parse_args()
 
-def train_model(args):
+#TODO: add a different function for training the autoencoder only vs training the full model
+#TODO: add validation losses to all training functions
+def train_model(args): 
     # Set random seeds for reproducibility
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
