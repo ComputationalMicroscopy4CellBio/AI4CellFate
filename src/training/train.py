@@ -129,7 +129,7 @@ def train_model(config, x_train, save_loss_plot=True):
 def save_loss_plots(reconstruction_losses, adversarial_losses, epochs):
     # Create loss plot and save it under the 'results' directory
     plt.figure(figsize=(10, 5))
-    print("hey")
+
     # Plot both reconstruction and adversarial losses with different colors
     plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
     plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
@@ -152,19 +152,39 @@ def save_loss_plots(reconstruction_losses, adversarial_losses, epochs):
     plt.close()
 
 
-# This allows running the script directly or importing it elsewhere
-if __name__ == '__main__':
-    x_train = np.random.randn(100, 20, 20)
+def main():
     try:
         # Try parsing arguments if the script is run from the terminal
         args = parse_arguments()
     except SystemExit:
-        # If parsing arguments fails (e.g., in a notebook), fall back to default config
-        args = argparse.Namespace(
-            batch_size=CONFIG.get('batch_size'),
-            epochs=CONFIG.get('epochs'),
-            learning_rate=CONFIG.get('learning_rate'),
-            seed=CONFIG.get('seed'),
-            latent_dim=CONFIG.get('latent_dim')
-        )
-    train_model(args, x_train)  # Call the training function with parsed arguments
+        args = {
+            'batch_size': 30,
+            'epochs': 50,
+            'learning_rate': 0.001,
+            'seed': 42,
+            'latent_dim': 20,
+            'GaussianNoise_std': 0.003
+        }
+    x_train = np.random.rand(100, 20, 20)  # Random input data
+    train_model(args, x_train)
+
+if __name__ == '__main__':
+    main()
+
+# This allows running the script directly or importing it elsewhere
+# if __name__ == '__main__': 
+#     #### TRY TO RUN IT IN cellfate.py
+#     x_train = np.random.randn(100, 20, 20)
+#     try:
+#         # Try parsing arguments if the script is run from the terminal
+#         args = parse_arguments()
+#     except SystemExit:
+#         # If parsing arguments fails (e.g., in a notebook), fall back to default config
+#         args = argparse.Namespace(
+#             batch_size=CONFIG.get('batch_size'),
+#             epochs=CONFIG.get('epochs'),
+#             learning_rate=CONFIG.get('learning_rate'),
+#             seed=CONFIG.get('seed'),
+#             latent_dim=CONFIG.get('latent_dim')
+#         )
+#     train_model(args, x_train)  # Call the training function with parsed arguments
