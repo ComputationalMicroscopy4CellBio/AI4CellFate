@@ -117,7 +117,8 @@ def train_model(config, x_train, save_loss_plot=True):
               f"Adversarial loss: {avg_adv_loss:.4f}")
 
     if save_loss_plot:
-        save_loss_plot(reconstruction_losses, adversarial_losses, epoch)
+        print("Saving loss plot...")
+        save_loss_plots(reconstruction_losses, adversarial_losses, config['epochs'])
 
     return {
         'reconstruction_losses': reconstruction_losses,
@@ -125,16 +126,16 @@ def train_model(config, x_train, save_loss_plot=True):
     }
 
 
-def save_loss_plot(reconstruction_losses, adversarial_losses, epoch):
+def save_loss_plots(reconstruction_losses, adversarial_losses, epochs):
     # Create loss plot and save it under the 'results' directory
     plt.figure(figsize=(10, 5))
-    
+    print("hey")
     # Plot both reconstruction and adversarial losses with different colors
     plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
     plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
 
     # Title and labels
-    plt.title(f"Training Losses Epoch {epoch + 1}", fontsize=14)
+    plt.title(f"Training Losses", fontsize=14)
     plt.xlabel('Epochs', fontsize=12)
     plt.ylabel('Loss', fontsize=12)
     
@@ -145,7 +146,7 @@ def save_loss_plot(reconstruction_losses, adversarial_losses, epoch):
     # Save the plot with a dpi of 300
     results_dir = './results/loss_plots'
     os.makedirs(results_dir, exist_ok=True)
-    plt.savefig(f"{results_dir}/final_loss_plot_epoch_{epoch + 1}.png", dpi=300)
+    plt.savefig(f"{results_dir}/loss_plot.png", dpi=300)
 
     # Close the plot to avoid memory issues
     plt.close()
@@ -153,7 +154,7 @@ def save_loss_plot(reconstruction_losses, adversarial_losses, epoch):
 
 # This allows running the script directly or importing it elsewhere
 if __name__ == '__main__':
-    x_train = np.random.randn(100, 20, 20, 1)
+    x_train = np.random.randn(100, 20, 20)
     try:
         # Try parsing arguments if the script is run from the terminal
         args = parse_arguments()
