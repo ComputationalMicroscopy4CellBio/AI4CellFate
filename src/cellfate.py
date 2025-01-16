@@ -11,7 +11,7 @@ def main():
     # Config for training
     config = {
         'batch_size': 30,
-        'epochs': 10,
+        'epochs': 3,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 20,
@@ -20,7 +20,7 @@ def main():
         'lambda_adv': 0.05,
     }
 
-    # Call the train_model function
+    # Train the autoencoder
     train_model(config, x_train)
 
 if __name__ == '__main__':

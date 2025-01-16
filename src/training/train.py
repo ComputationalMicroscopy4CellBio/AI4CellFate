@@ -25,7 +25,7 @@ def convert_namespace_to_dict(config): # TEMPORARY: Helper function to convert N
         return {key: getattr(config, key) for key in vars(config)}
     return config # If it's already a dictionary, return as is
 
-def train_model(config, x_train, save_loss_plot=True):
+def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
     print("hello")
@@ -115,6 +115,23 @@ def train_model(config, x_train, save_loss_plot=True):
     if save_loss_plot:
         print("Saving loss plot...")
         save_loss_plots(reconstruction_losses, adversarial_losses, config['epochs'])
+    
+    if save_model_weights:
+        print("Saving model weights...")
+        output_dir = "./results/models"
+        os.makedirs(output_dir, exist_ok=True)
+
+        encoder_weights_path = os.path.join(output_dir, "encoder.weights.h5")
+        decoder_weights_path = os.path.join(output_dir, "decoder.weights.h5")
+        discriminator_weights_path = os.path.join(output_dir, "discriminator.weights.h5")
+
+        encoder.save_weights(encoder_weights_path)
+        decoder.save_weights(decoder_weights_path)
+        discriminator.save_weights(discriminator_weights_path)
+
+        print(f"Encoder weights saved to {encoder_weights_path}")
+        print(f"Decoder weights saved to {decoder_weights_path}")
+        print(f"Discriminator weights saved to {discriminator_weights_path}")
 
     return {
         'reconstruction_losses': reconstruction_losses,
