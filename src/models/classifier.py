@@ -1,7 +1,7 @@
 from tensorflow.keras import layers, Sequential
 
 # A small MLP for classification from the latent space
-def create_mlp(latent_dim):
+def mlp_classifier(latent_dim):
     return Sequential([
         layers.Input(shape=(latent_dim,)),
         layers.Dense(32, activation='relu'),
