@@ -42,9 +42,9 @@ def train_model(config, x_train, save_loss_plot=True):
     img_shape = (x_train.shape[1], x_train.shape[2], 1) # Assuming grayscale images
 
     # Create model instances
-    encoder = Encoder(img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std'])
-    decoder = Decoder(config)
-    discriminator = Discriminator(config)
+    encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
+    decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
+    discriminator = Discriminator(latent_dim=config['latent_dim']).model
 
     # Optimizers
     ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'])
