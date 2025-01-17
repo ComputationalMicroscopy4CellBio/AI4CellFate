@@ -46,6 +46,7 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     # Optimizers
     ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
     disc_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
 
     # Placeholder for storing losses
     reconstruction_losses = []
@@ -110,10 +111,10 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             scaled_disc_gradients = scale_gradients(disc_gradients, disc_loss_norm, config['lambda_adv'])
 
             # Backpropagation for autoencoder (encoder + decoder)
-            ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
+            ae_optimizer.apply_gradients(zip(scaled_gradients, trainable_variables))
 
             # Backpropagation for discriminator
-            disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
+            disc_optimizer.apply_gradients(zip(scaled_disc_gradients, discriminator.trainable_variables))
 
             # Track individual losses for adjustment
             epoch_reconstruction_losses.append(config['lambda_recon'] * recon_loss)
