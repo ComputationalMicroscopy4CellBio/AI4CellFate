@@ -134,6 +134,9 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
         print(f"Discriminator weights saved to {discriminator_weights_path}")
 
     return {
+        'encoder': encoder,
+        'decoder': decoder,
+        'discriminator': discriminator,
         'reconstruction_losses': reconstruction_losses,
         'adversarial_losses': adversarial_losses
     }
