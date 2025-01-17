@@ -18,6 +18,7 @@ def parse_arguments():
     parser.add_argument('--lambda_recon', type=float, default=CONFIG.get('lambda_recon'))
     parser.add_argument('--lambda_adv', type=float, default=CONFIG.get('lambda_adv'))
     parser.add_argument('--lambda_clf', type=float, default=CONFIG.get('lambda_clf'))
+    parser.add_argument('--lambda_cov', type=float, default=CONFIG.get('lambda_cov'))
     return parser.parse_args()
 
 def convert_namespace_to_dict(config): # TEMPORARY: Helper function to convert Namespace to dictionary
@@ -197,8 +198,12 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 mlp_predictions = classifier(z_imgs, training=True)
                 classification_loss = bce_loss(np.eye(2)[y_train[idx]], mlp_predictions) # One-hot encoding
 
+                # Covariance loss
+                cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
+                cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss
+
                 # Total autoencoder loss
-                ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss + config['lambda_clf'] * classification_loss
+                ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss + config['lambda_clf'] * classification_loss + config['lambda_cov'] * cov_loss
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder (encoder + decoder)
@@ -224,6 +229,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             epoch_reconstruction_losses.append(config['lambda_recon'] * recon_loss)
             epoch_adversarial_losses.append(config['lambda_adv'] * adv_loss)
             epoch_classification_losses.append(config['lambda_clf'] * classification_loss)
+            epoch_cov_losses.append(config['lambda_cov'] * cov_loss)
         
         # Validation loss of the MLP classifier
         epoch_val_clf_loss = []
@@ -244,25 +250,28 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
         avg_clf_loss = np.mean(epoch_classification_losses)
+        avg_cov_loss = np.mean(epoch_cov_losses)
         avg_clf_val_loss = np.mean(epoch_val_clf_loss)
 
         reconstruction_losses.append(avg_recon_loss)
         adversarial_losses.append(avg_adv_loss)
         classification_losses.append(avg_clf_loss)
+        cov_losses.append(avg_cov_loss)
         validation_classification_losses.append(avg_clf_val_loss)
 
         # Print and save results at the end of each epoch
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
-              f"Classification loss: {avg_clf_loss:.4f}")
+              f"Classification loss: {avg_clf_loss:.4f}", 
+              f"Covariance loss: {avg_cov_loss:.4f}")
         
         # Print validation loss
         print(f"Validation Classification Loss: {avg_clf_val_loss:.4f}")
 
     if save_loss_plot:
         print("Saving loss plot...")
-        save_loss_plots_full(reconstruction_losses, adversarial_losses, classification_losses, validation_classification_losses, config['epochs'])
+        save_loss_plots_full(reconstruction_losses, adversarial_losses, classification_losses, validation_classification_losses, cov_losses, config['epochs'])
     
     if save_model_weights:
         print("Saving model weights...")
@@ -322,7 +331,7 @@ def save_loss_plots(reconstruction_losses, adversarial_losses, epochs):
     plt.close()
 
 
-def save_loss_plots_full(reconstruction_losses, adversarial_losses, classification_losses, validation_classification_losses, epochs): #cov_losses
+def save_loss_plots_full(reconstruction_losses, adversarial_losses, classification_losses, validation_classification_losses, cov_losses, epochs): #cov_losses
     # Create directory for saving plots
     results_dir = './results/loss_plots'
     os.makedirs(results_dir, exist_ok=True)
@@ -334,7 +343,7 @@ def save_loss_plots_full(reconstruction_losses, adversarial_losses, classificati
     plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
     plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
     plt.plot(classification_losses, label='Classification Loss', color='green', linestyle='-.', linewidth=2)
-    #plt.plot(cov_losses, label='Covariance Loss', color='purple', linestyle=':', linewidth=2)
+    plt.plot(cov_losses, label='Covariance Loss', color='purple', linestyle=':', linewidth=2)
 
     # Title and labels
     plt.title("Training Losses", fontsize=14)

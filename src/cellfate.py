@@ -52,6 +52,7 @@ def main():
         'lambda_recon': 5, 
         'lambda_adv': 0.05,
         'lambda_clf': 0.05,
+        'lambda_cov': 0.1,
     }
 
     # Train the autoencoder model
@@ -62,7 +63,7 @@ def main():
 
     config = {
         'batch_size': 30,
-        'epochs': 30,
+        'epochs': 10,
         'learning_rate': 0.0001,
         'seed': 42,
         'latent_dim': 20,
@@ -70,6 +71,7 @@ def main():
         'lambda_recon': 5, 
         'lambda_adv': 0.05,
         'lambda_clf': 0.05,
+        'lambda_cov': 0.1,
     }
 
     # Train the full model
