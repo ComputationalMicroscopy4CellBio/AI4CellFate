@@ -29,7 +29,6 @@ def convert_namespace_to_dict(config): # TEMPORARY: Helper function to convert N
 def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
-    print("hello")
     np.random.seed(config['seed'])
     tf.random.set_seed(config['seed'])
 
@@ -83,9 +82,6 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables
             gradients = tape.gradient(ae_loss, trainable_variables)
 
-            # Delete tape to free up memory
-            del tape
-
             # Train the discriminator
             rand_vecs = tf.random.normal(shape=(config['batch_size'], config['latent_dim']))
 
@@ -98,20 +94,17 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
 
             # Calculate gradients for discriminator
             disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
-            
-            # Delete tape to free up memory
-            del tape
 
             # Compute the L2 norm of all loss gradients
             ae_loss_norm = L2_norm(gradients)
             disc_loss_norm = L2_norm(disc_gradients)
 
             # Scale gradients by the L2 norm
-            scaled_gradients = scale_gradients(gradients, ae_loss_norm, config['lambda_recon'])
+            scaled_ae_gradients = scale_gradients(gradients, ae_loss_norm, config['lambda_recon'])
             scaled_disc_gradients = scale_gradients(disc_gradients, disc_loss_norm, config['lambda_adv'])
 
             # Backpropagation for autoencoder (encoder + decoder)
-            ae_optimizer.apply_gradients(zip(scaled_gradients, trainable_variables))
+            ae_optimizer.apply_gradients(zip(scaled_ae_gradients, trainable_variables))
 
             # Backpropagation for discriminator
             disc_optimizer.apply_gradients(zip(scaled_disc_gradients, discriminator.trainable_variables))
