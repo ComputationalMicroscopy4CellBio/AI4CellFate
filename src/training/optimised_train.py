@@ -6,6 +6,7 @@ import numpy as np
 from ..config import CONFIG
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
+from .optimisation_functions import *
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Training Configuration')
@@ -101,7 +102,12 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             del tape
 
             # Compute the L2 norm of all loss gradients
-            
+            ae_loss_norm = L2_norm(gradients)
+            disc_loss_norm = L2_norm(disc_gradients)
+
+            # Scale gradients by the L2 norm
+            scaled_gradients = scale_gradients(gradients, ae_loss_norm, config['lambda_recon'])
+            scaled_disc_gradients = scale_gradients(disc_gradients, disc_loss_norm, config['lambda_adv'])
 
             # Backpropagation for autoencoder (encoder + decoder)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
