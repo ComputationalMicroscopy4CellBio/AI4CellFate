@@ -305,6 +305,53 @@ def save_loss_plots(reconstruction_losses, adversarial_losses, epochs):
     plt.close()
 
 
+def save_loss_plots_full(reconstruction_losses, adversarial_losses, classification_losses, validation_classification_losses, cov_losses, epochs):
+    # Create directory for saving plots
+    results_dir = './results/loss_plots'
+    os.makedirs(results_dir, exist_ok=True)
+
+    # Create the main training losses plot
+    plt.figure(figsize=(10, 5))
+
+    # Plot reconstruction and adversarial losses
+    plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
+    plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
+    plt.plot(classification_losses, label='Classification Loss', color='green', linestyle='-.', linewidth=2)
+    plt.plot(cov_losses, label='Covariance Loss', color='purple', linestyle=':', linewidth=2)
+
+    # Title and labels
+    plt.title("Training Losses", fontsize=14)
+    plt.xlabel('Epochs', fontsize=12)
+    plt.ylabel('Loss', fontsize=12)
+    
+    # Add grid and legend
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.legend(loc='upper right', fontsize=12)
+    
+    # Save the plot
+    plt.savefig(f"{results_dir}/loss_plot.png", dpi=300)
+    plt.close()  # Close the plot to avoid memory issues
+
+    # Create validation classification loss plot
+    plt.figure(figsize=(10, 5))
+
+    # Plot validation classification loss
+    plt.plot(validation_classification_losses, label='Validation Classification Loss', color='orange', linestyle='-', linewidth=2)
+
+    # Title and labels
+    plt.title("MLP Classification Validation", fontsize=14)
+    plt.xlabel('Epochs', fontsize=12)
+    plt.ylabel('Loss', fontsize=12)
+
+    # Add grid and legend
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.legend(loc='upper right', fontsize=12)
+
+    # Save the validation classification loss plot
+    plt.savefig(f"{results_dir}/validation_loss_plot.png", dpi=300)
+    plt.close()  # Close the plot to avoid memory issues
+
+
 def main():
     try:
         # Try parsing arguments if the script is run from the terminal
