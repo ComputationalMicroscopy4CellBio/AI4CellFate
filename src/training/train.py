@@ -172,6 +172,7 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
     classification_losses = []
     cov_losses = []
     total_loss = []
+    validation_classification_losses = []
 
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
@@ -227,22 +228,40 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
             epoch_adversarial_losses.append(config['lambda_adv'] * adv_loss)
             epoch_classification_losses.append(config['lambda_clf'] * classification_loss)
         
-        #TODO: Add validation loss calculation for the classifier
+        # Validation loss of the MLP classifier
+        epoch_val_clf_loss = []
+        for n_batch in range(len(x_test) // config['batch_size']):
+            idx = np.random.randint(0, x_test.shape[0], config['batch_size'])
+            test_image_batch = x_test[idx]
+
+            # Use the encoder to get the latent space representation
+            test_z_imgs, _ = encoder(test_image_batch, training=False)
+
+            # Get the predictions from the classifier
+            mlp_predictions_val = classifier(test_z_imgs, training=False)
+            validation_classification_loss = bce_loss(np.eye(2)[y_test[idx]], mlp_predictions_val) # One-hot encoding
+            
+            epoch_val_clf_loss.append(validation_classification_loss)
 
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
         avg_clf_loss = np.mean(epoch_classification_losses)
+        avg_clf_val_loss = np.mean(epoch_val_clf_loss)
 
         reconstruction_losses.append(avg_recon_loss)
         adversarial_losses.append(avg_adv_loss)
         classification_losses.append(avg_clf_loss)
+        validation_classification_losses.append(avg_clf_val_loss)
 
         # Print and save results at the end of each epoch
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
               f"Classification loss: {avg_clf_loss:.4f}")
+        
+        # Print validation loss
+        print(f"Validation Classification Loss: {avg_clf_val_loss:.4f}")
 
     if save_loss_plot:
         print("Saving loss plot...")
@@ -275,7 +294,8 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
         'classifier': classifier,
         'reconstruction_losses': reconstruction_losses,
         'adversarial_losses': adversarial_losses,
-        'classification_losses': classification_losses
+        'classification_losses': classification_losses,
+        'validation_classification_losses': validation_classification_losses,
     }
 
 
