@@ -77,10 +77,12 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
                 ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss
                 total_loss.append(ae_loss)
 
-            # Backpropagation for autoencoder (encoder + decoder)
+            # Compute gradients for encoder and decoder
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables
             gradients = tape.gradient(ae_loss, trainable_variables)
-            ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
+
+            # Delete tape to free up memory
+            del tape
 
             # Train the discriminator
             rand_vecs = tf.random.normal(shape=(config['batch_size'], config['latent_dim']))
@@ -92,8 +94,19 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
                 discriminator_loss = 0.5 * bce_loss(real_y, rand_discriminator_out) + \
                                      0.5 * bce_loss(fake_y, z_discriminator_out)
 
-            # Update discriminator weights
+            # Calculate gradients for discriminator
             disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
+            
+            # Delete tape to free up memory
+            del tape
+
+            # Compute the L2 norm of all loss gradients
+            
+
+            # Backpropagation for autoencoder (encoder + decoder)
+            ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
+
+            # Backpropagation for discriminator
             disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
 
             # Track individual losses for adjustment
@@ -178,7 +191,8 @@ def main():
             'latent_dim': 20,
             'GaussianNoise_std': 0.003
         }
-    x_train = np.random.rand(100, 20, 20)  # Random input data
+    # Load the dataset
+    x_train = np.load('data/stretched_x_train.npy')
     train_model(args, x_train)
 
 if __name__ == '__main__':
