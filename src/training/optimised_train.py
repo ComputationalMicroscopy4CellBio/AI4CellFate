@@ -120,7 +120,7 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             # MOO: Compute the L2 norm of all loss gradients
             recon_loss_norm = L2_norm(recon_gradients)
             adv_loss_norm = L2_norm(adv_gradients)
-            
+
             # MOO: Compute the average gradient magnitude for the epoch
             grad_avg = (recon_loss_norm + adv_loss_norm) / 2.0
 
@@ -150,12 +150,6 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
                 # Total autoencoder loss
                 ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss
                 total_loss.append(ae_loss)
-
-            # # MOO: Scale gradients by the L2 norm
-            # scaled_ae_gradients = scale_gradients(gradients, ae_loss_norm, config['lambda_recon'])
-
-            # # MOO: Backpropagation for autoencoder (encoder + decoder)
-            # ae_optimizer.apply_gradients(zip(scaled_ae_gradients, trainable_variables))
 
             # Backpropagation for autoencoder (encoder + decoder)
             gradients = tape.gradient(ae_loss, trainable_variables)
