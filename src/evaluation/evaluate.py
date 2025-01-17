@@ -96,7 +96,7 @@ class Evaluation:
         plt.show()
         print(f"Latent space visualization saved to {output_path}")
 
-    def calculate_kl_divergence(latent_samples, num_bins=100):
+    def calculate_kl_divergence(self, latent_samples, num_bins=100):
         """
         Calculate the KL divergence between the empirical distribution of latent samples
         and a standard Gaussian distribution.

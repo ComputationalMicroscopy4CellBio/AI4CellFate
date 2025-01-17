@@ -3,6 +3,7 @@ import os
 import tensorflow as tf
 from src.training.train import train_model, train_cellfate
 from src.evaluation.evaluate import Evaluation
+from src.training.loss_functions import cov_loss_terms
 
 # Function to load data
 def load_data():
@@ -25,7 +26,7 @@ def evaluate_model(encoder, decoder, classifier, x_train, y_train, x_test, y_tes
  
     evaluator.reconstruction_images(x_train, recon_imgs[:,:,:,0])
     
-    if full_evaluation: ##TODO later
+    if full_evaluation: 
         # Predict labels and plot confusion matrix
         test_latent_space, _ = encoder.predict(x_test)
         y_pred = classifier.predict(test_latent_space) 
@@ -33,6 +34,13 @@ def evaluate_model(encoder, decoder, classifier, x_train, y_train, x_test, y_tes
         
         # Visualize latent space
         evaluator.visualize_latent_space(z_imgs, y_train)
+
+        # Covariance matrix
+        cov_matrix = cov_loss_terms(z_imgs)[0]
+        evaluator.plot_cov_matrix(cov_matrix)
+
+        # KL divergence
+        print("KL Divergences in each dimension: ", evaluator.calculate_kl_divergence(z_imgs))
 
 # Main function
 def main():
@@ -44,7 +52,7 @@ def main():
     # Config for training
     config = {
         'batch_size': 30,
-        'epochs': 10,
+        'epochs': 5,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 20,
@@ -63,7 +71,7 @@ def main():
 
     config = {
         'batch_size': 30,
-        'epochs': 10,
+        'epochs': 5,
         'learning_rate': 0.0001,
         'seed': 42,
         'latent_dim': 20,
