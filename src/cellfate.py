@@ -32,8 +32,7 @@ def evaluate_model(encoder, decoder, classifier, x_train, y_train, x_test, y_tes
         evaluator.plot_confusion_matrix(y_test, y_pred, num_classes=2)
         
         # Visualize latent space
-        # latent_space = model.encoder.predict(x_test)  # Assuming the encoder exists
-        # evaluator.visualize_latent_space(latent_space, y_test)
+        evaluator.visualize_latent_space(z_imgs, y_train)
 
 # Main function
 def main():
@@ -69,7 +68,6 @@ def main():
 
     # Evaluate the model
     evaluate_model(encoder, final_decoder, classifier, x_train, y_train, x_test, y_test, full_evaluation=True)
-    # evaluate_model(encoder, decoder, x_train, y_train, x_test, y_test, full_evaluation=True)
 
 if __name__ == '__main__':
     main()
