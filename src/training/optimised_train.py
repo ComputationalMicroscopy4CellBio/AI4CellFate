@@ -62,11 +62,15 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     adversarial_losses = []
     total_loss = []
 
+    # MOO: Placeholder for storing weights
+    lambda_recon_vals = []
+    lambda_adv_vals = []
+
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
     for epoch in range(config['epochs']):
-        epoch_reconstruction_losses, epoch_adversarial_losses = [], []
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_lambda_recon_vals, epoch_lambda_adv_vals = [], [], [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
@@ -175,6 +179,10 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             epoch_reconstruction_losses.append(config['lambda_recon'] * recon_loss)
             epoch_adversarial_losses.append(config['lambda_adv'] * adv_loss)
 
+            # MOO: Store weights for the losses
+            epoch_lambda_recon_vals.append(lambda_recon.numpy())
+            epoch_lambda_adv_vals.append(lambda_adv.numpy())
+
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
@@ -182,10 +190,19 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
         reconstruction_losses.append(avg_recon_loss)
         adversarial_losses.append(avg_adv_loss)
 
+        # Store average weights for the epoch
+        avg_lambda_recon = np.mean(epoch_lambda_recon_vals)
+        avg_lambda_adv = np.mean(epoch_lambda_adv_vals)
+
+        lambda_recon_vals.append(avg_lambda_recon)
+        lambda_adv_vals.append(avg_lambda_adv)
+
         # Print and save results at the end of each epoch
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
-              f"Adversarial loss: {avg_adv_loss:.4f}")
+              f"Adversarial loss: {avg_adv_loss:.4f}",
+              f"Reconstruction lambda: {avg_lambda_recon:.4f}",
+              f"Adversarial lambda: {avg_lambda_adv:.4f}")
 
     if save_loss_plot:
         print("Saving loss plot...")
