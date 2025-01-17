@@ -60,6 +60,18 @@ def main():
     decoder = autoencoder_results['decoder']
     discriminator = autoencoder_results['discriminator']
 
+    config = {
+        'batch_size': 30,
+        'epochs': 30,
+        'learning_rate': 0.0001,
+        'seed': 42,
+        'latent_dim': 20,
+        'GaussianNoise_std': 0.003,
+        'lambda_recon': 5, 
+        'lambda_adv': 0.05,
+        'lambda_clf': 0.05,
+    }
+
     # Train the full model
     full_model_results = train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test)
     final_encoder = full_model_results['encoder']

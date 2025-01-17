@@ -2,6 +2,7 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
+from scipy.stats import norm, entropy
 
 class Evaluation:
     def __init__(self, output_dir="./results/evaluation"):
@@ -94,3 +95,40 @@ class Evaluation:
         plt.savefig(output_path, dpi=300)
         plt.show()
         print(f"Latent space visualization saved to {output_path}")
+
+    def calculate_kl_divergence(latent_samples, num_bins=100):
+        """
+        Calculate the KL divergence between the empirical distribution of latent samples
+        and a standard Gaussian distribution.
+
+        Args:
+            latent_samples (numpy.ndarray): Latent samples of shape (n_samples, latent_dim).
+            num_bins (int): Number of bins to use for histogram estimation.
+
+        Returns:
+            list: KL divergence for each latent dimension.
+        """
+        kl_divergences = []
+
+        for dim in range(latent_samples.shape[1]):
+            # Get the samples for the current dimension
+            samples = latent_samples[:, dim]
+
+            # Compute histogram for the empirical distribution
+            hist, bin_edges = np.histogram(samples, bins=num_bins, density=True)
+            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+            # Compute the Gaussian PDF for the bin centers
+            gaussian_pdf = norm.pdf(bin_centers)
+
+            # Normalize both distributions
+            hist += 1e-10  # Avoid division by zero
+            hist /= np.sum(hist)  # Normalize histogram to make it a valid probability distribution
+            gaussian_pdf += 1e-10
+            gaussian_pdf /= np.sum(gaussian_pdf)
+
+            # Compute KL divergence
+            kl_div = entropy(hist, gaussian_pdf)
+            kl_divergences.append(kl_div)
+
+        return kl_divergences
