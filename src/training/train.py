@@ -142,7 +142,7 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
         'adversarial_losses': adversarial_losses
     }
 
-def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True, save_model_weights=True):
+def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test, save_loss_plot=True, save_model_weights=True):
     """Train the full CellFate model - the autoencoder and the classifier (MLP), 
     with latent space disentanglement for interpretability."""
 
@@ -157,9 +157,9 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
     img_shape = (x_train.shape[1], x_train.shape[2], 1) # Assuming grayscale images
 
     # Create model instances
-    encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
-    decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
-    discriminator = Discriminator(latent_dim=config['latent_dim']).model
+    # encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
+    # decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
+    # discriminator = Discriminator(latent_dim=config['latent_dim']).model
     classifier = mlp_classifier(latent_dim=config['latent_dim'])
 
     # Optimizers
@@ -265,7 +265,7 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
 
     if save_loss_plot:
         print("Saving loss plot...")
-        save_loss_plots(reconstruction_losses, adversarial_losses, config['epochs'])
+        save_loss_plots_full(reconstruction_losses, adversarial_losses, classification_losses, validation_classification_losses, config['epochs'])
     
     if save_model_weights:
         print("Saving model weights...")
@@ -325,7 +325,7 @@ def save_loss_plots(reconstruction_losses, adversarial_losses, epochs):
     plt.close()
 
 
-def save_loss_plots_full(reconstruction_losses, adversarial_losses, classification_losses, validation_classification_losses, cov_losses, epochs):
+def save_loss_plots_full(reconstruction_losses, adversarial_losses, classification_losses, validation_classification_losses, epochs): #cov_losses
     # Create directory for saving plots
     results_dir = './results/loss_plots'
     os.makedirs(results_dir, exist_ok=True)
@@ -337,7 +337,7 @@ def save_loss_plots_full(reconstruction_losses, adversarial_losses, classificati
     plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
     plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
     plt.plot(classification_losses, label='Classification Loss', color='green', linestyle='-.', linewidth=2)
-    plt.plot(cov_losses, label='Covariance Loss', color='purple', linestyle=':', linewidth=2)
+    #plt.plot(cov_losses, label='Covariance Loss', color='purple', linestyle=':', linewidth=2)
 
     # Title and labels
     plt.title("Training Losses", fontsize=14)
