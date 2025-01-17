@@ -51,7 +51,7 @@ class Evaluation:
         # Annotate the matrix
         for i in range(num_classes):
             for j in range(num_classes):
-                plt.text(j, i, f"{cm[i, j]}", ha="center", va="center", color="black")
+                plt.text(j, i, f"{conf_matrix_normalized[i, j]}", ha="center", va="center", color="black")
 
         plt.tight_layout()
         output_path = os.path.join(self.output_dir, "confusion_matrix.png")

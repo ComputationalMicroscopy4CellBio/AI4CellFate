@@ -156,10 +156,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
 
     img_shape = (x_train.shape[1], x_train.shape[2], 1) # Assuming grayscale images
 
-    # Create model instances
-    # encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
-    # decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
-    # discriminator = Discriminator(latent_dim=config['latent_dim']).model
+    # Create model instance
     classifier = mlp_classifier(latent_dim=config['latent_dim'])
 
     # Optimizers
