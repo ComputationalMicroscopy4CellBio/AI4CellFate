@@ -17,6 +17,7 @@ def parse_arguments():
     parser.add_argument('--GaussianNoise_std', type=float, default=CONFIG.get('GaussianNoise_std'))
     parser.add_argument('--lambda_recon', type=float, default=CONFIG.get('lambda_recon'))
     parser.add_argument('--lambda_adv', type=float, default=CONFIG.get('lambda_adv'))
+    parser.add_argument('--lambda_clf', type=float, default=CONFIG.get('lambda_clf'))
     return parser.parse_args()
 
 def convert_namespace_to_dict(config): # TEMPORARY: Helper function to convert Namespace to dictionary
@@ -142,9 +143,8 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     }
 
 def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True, save_model_weights=True):
-    """Train the full CellFate model - 
-    the autoencoder and the classifier (MLP), 
-    with latent space disentanglement."""
+    """Train the full CellFate model - the autoencoder and the classifier (MLP), 
+    with latent space disentanglement for interpretability."""
 
     config = convert_namespace_to_dict(config)
     print("hello")
@@ -160,6 +160,7 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
     encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
     decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
     discriminator = Discriminator(latent_dim=config['latent_dim']).model
+    classifier = mlp_classifier(latent_dim=config['latent_dim'])
 
     # Optimizers
     ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
@@ -168,13 +169,15 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
     # Placeholder for storing losses
     reconstruction_losses = []
     adversarial_losses = []
+    classification_losses = []
+    cov_losses = []
     total_loss = []
 
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
-    for epoch in range(config['epochs']):
-        epoch_reconstruction_losses, epoch_adversarial_losses = [], []
+    for epoch in range(config['epochs']): 
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_classification_losses, epoch_cov_losses  = [], [], [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
@@ -192,12 +195,16 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
                 z_discriminator_out = discriminator(z_imgs, training=True)
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
+                # Classification loss
+                mlp_predictions = classifier(z_imgs, training=True)
+                classification_loss = bce_loss(np.eye(2)[y_train[idx]], mlp_predictions) # One-hot encoding
+
                 # Total autoencoder loss
-                ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss
+                ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss + config['lambda_clf'] * classification_loss
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder (encoder + decoder)
-            trainable_variables = encoder.trainable_variables + decoder.trainable_variables
+            trainable_variables = encoder.trainable_variables + decoder.trainable_variables + classifier.trainable_variables
             gradients = tape.gradient(ae_loss, trainable_variables)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
@@ -218,18 +225,24 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
             # Track individual losses for adjustment
             epoch_reconstruction_losses.append(config['lambda_recon'] * recon_loss)
             epoch_adversarial_losses.append(config['lambda_adv'] * adv_loss)
+            epoch_classification_losses.append(config['lambda_clf'] * classification_loss)
+        
+        #TODO: Add validation loss calculation for the classifier
 
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
+        avg_clf_loss = np.mean(epoch_classification_losses)
 
         reconstruction_losses.append(avg_recon_loss)
         adversarial_losses.append(avg_adv_loss)
+        classification_losses.append(avg_clf_loss)
 
         # Print and save results at the end of each epoch
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
-              f"Adversarial loss: {avg_adv_loss:.4f}")
+              f"Adversarial loss: {avg_adv_loss:.4f}, "
+              f"Classification loss: {avg_clf_loss:.4f}")
 
     if save_loss_plot:
         print("Saving loss plot...")
@@ -243,21 +256,26 @@ def train_cellfate(config, x_train, y_train, x_test, y_test, save_loss_plot=True
         encoder_weights_path = os.path.join(output_dir, "encoder.weights.h5")
         decoder_weights_path = os.path.join(output_dir, "decoder.weights.h5")
         discriminator_weights_path = os.path.join(output_dir, "discriminator.weights.h5")
+        classifier_weights_path = os.path.join(output_dir, "classifier.weights.h5")
 
         encoder.save_weights(encoder_weights_path)
         decoder.save_weights(decoder_weights_path)
         discriminator.save_weights(discriminator_weights_path)
+        classifier.save_weights(classifier_weights_path)
 
         print(f"Encoder weights saved to {encoder_weights_path}")
         print(f"Decoder weights saved to {decoder_weights_path}")
         print(f"Discriminator weights saved to {discriminator_weights_path}")
+        print(f"Classifier weights saved to {classifier_weights_path}")
 
     return {
         'encoder': encoder,
         'decoder': decoder,
         'discriminator': discriminator,
+        'classifier': classifier,
         'reconstruction_losses': reconstruction_losses,
-        'adversarial_losses': adversarial_losses
+        'adversarial_losses': adversarial_losses,
+        'classification_losses': classification_losses
     }
 
 
@@ -301,7 +319,10 @@ def main():
             'GaussianNoise_std': 0.003
         }
     x_train = np.random.rand(100, 20, 20)  # Random input data
-    train_model(args, x_train)
+    y_train = np.random.randint(0, 2, 100)  # Random labels
+    x_test = np.random.rand(20, 20, 20)  # Random input data
+    y_test = np.random.randint(0, 2, 20)  # Random labels
+    train_cellfate(args, x_train, y_train, x_test, y_test)
 
 if __name__ == '__main__':
     main()

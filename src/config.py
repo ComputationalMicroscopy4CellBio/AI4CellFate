@@ -7,4 +7,5 @@ CONFIG = {
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5, 
         'lambda_adv': 0.05,
+        'lambda_clf': 0.05,
     }
