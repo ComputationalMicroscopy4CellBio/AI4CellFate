@@ -37,7 +37,6 @@ def set_seed(seed):
 def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
-    print("hello")
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
 
@@ -162,14 +161,11 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
     with latent space disentanglement for interpretability."""
 
     config = convert_namespace_to_dict(config)
-    print("hello")
-    np.random.seed(config['seed'])
-    tf.random.set_seed(config['seed'])
+    set_seed(config['seed'])
+    rng = np.random.default_rng(config['seed'])
 
     print(f"Training with batch size: {config['batch_size']}, epochs: {config['epochs']}, "
           f"learning rate: {config['learning_rate']}, seed: {config['seed']}, latent dim: {config['latent_dim']}")
-
-    img_shape = (x_train.shape[1], x_train.shape[2], 1) # Assuming grayscale images
 
     # Create model instance
     classifier = mlp_classifier(latent_dim=config['latent_dim'])
@@ -193,7 +189,8 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         epoch_reconstruction_losses, epoch_adversarial_losses, epoch_classification_losses, epoch_cov_losses  = [], [], [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
-            idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
+            idx = rng.integers(0, x_train.shape[0], config['batch_size'])
+            #idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
             image_batch = x_train[idx]
 
             with tf.GradientTape() as tape:
@@ -226,7 +223,11 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
             # Train the discriminator
-            rand_vecs = tf.random.normal(shape=(config['batch_size'], config['latent_dim']))
+            rand_vecs = tf.random.stateless_normal(
+                shape=(config['batch_size'], config['latent_dim']),
+                seed=(config['seed'], epoch + n_batch)
+            )
+            #rand_vecs = tf.random.normal(shape=(config['batch_size'], config['latent_dim']))
 
             with tf.GradientTape() as tape:
                 z_discriminator_out = discriminator(z_imgs, training=True)
@@ -248,7 +249,8 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         # Validation loss of the MLP classifier
         epoch_val_clf_loss = []
         for n_batch in range(len(x_test) // config['batch_size']):
-            idx = np.random.randint(0, x_test.shape[0], config['batch_size'])
+            #idx = np.random.randint(0, x_test.shape[0], config['batch_size'])
+            idx = rng.integers(0, x_test.shape[0], config['batch_size'])
             test_image_batch = x_test[idx]
 
             # Use the encoder to get the latent space representation

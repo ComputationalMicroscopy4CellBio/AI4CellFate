@@ -22,7 +22,7 @@ def evaluate_model(encoder, decoder, classifier, x_train, y_train, x_test, y_tes
     print("HERE")
     z_imgs, _ = encoder.predict(x_train)
     recon_imgs = decoder.predict(z_imgs)
-    print(recon_imgs)
+    #print(recon_imgs)
  
     evaluator.reconstruction_images(x_train, recon_imgs[:,:,:,0])
     
@@ -52,7 +52,7 @@ def main():
     # Config for training
     config = {
         'batch_size': 30,
-        'epochs': 5,
+        'epochs': 10,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 20,
@@ -69,9 +69,11 @@ def main():
     decoder = autoencoder_results['decoder']
     discriminator = autoencoder_results['discriminator']
 
+    #evaluate_model(encoder, decoder, None, x_train, y_train, x_test, y_test)
+
     config = {
         'batch_size': 30,
-        'epochs': 5,
+        'epochs': 40,
         'learning_rate': 0.0001,
         'seed': 42,
         'latent_dim': 20,
@@ -89,7 +91,7 @@ def main():
     classifier = full_model_results['classifier']
 
     # Evaluate the model
-    evaluate_model(encoder, final_decoder, classifier, x_train, y_train, x_test, y_test, full_evaluation=True)
+    evaluate_model(final_encoder, final_decoder, classifier, x_train, y_train, x_test, y_test, full_evaluation=True)
 
 if __name__ == '__main__':
     main()
