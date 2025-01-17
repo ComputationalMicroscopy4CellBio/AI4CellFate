@@ -45,7 +45,17 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     # Optimizers
     ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
     disc_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
+    
+    # MOO: Initialise weights for the losses - one for each loss
+    lambda_recon = tf.Variable(config["lambda_recon"], trainable=False, dtype=tf.float32)
+    lambda_adv = tf.Variable(config["lambda_adv"], trainable=False, dtype=tf.float32)
+
+    # MOO: Initialise empty first losses - one for each loss
+    L_0_recon = None
+    L_0_adv = None
+
+    # MOO: Initialise epsilon for safe division - could go in config
+    epsilon = 1e-8
 
     # Placeholder for storing losses
     reconstruction_losses = []
@@ -62,6 +72,65 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
             image_batch = x_train[idx]
 
+            # MOO: Measure baseline losses - do this for all loss functions
+            if L_0_recon is None or L_0_adv is None:
+                with tf.GradientTape() as tape_init:
+                    # Forward pass through encoder and decoder
+                    z_imgs, z_score = encoder(image_batch, training=True)
+                    recon_imgs = decoder(z_imgs, training=True)[:, :, :, 0]
+
+                    # Reconstruction loss
+                    L_recon_init = mse_loss(image_batch, recon_imgs)
+
+                    # Adversarial loss for discriminator
+                    z_discriminator_out = discriminator(z_imgs, training=True)
+                    L_adv_init = bce_loss(real_y, z_discriminator_out)
+
+                # Store them
+                L_0_recon = L_recon_init
+                L_0_adv = L_adv_init
+                del tape_init
+
+            # Determine appropriate values for weights
+            with tf.GradientTape(persistent=True) as tape:
+                # Forward pass through encoder and decoder
+                z_imgs, z_score = encoder(image_batch, training=True)
+                recon_imgs = decoder(z_imgs, training=True)[:, :, :, 0]
+
+                # Reconstruction loss
+                recon_loss = mse_loss(image_batch, recon_imgs)
+
+                # Adversarial loss for discriminator
+                z_discriminator_out = discriminator(z_imgs, training=True)
+                adv_loss = bce_loss(real_y, z_discriminator_out)
+
+                # Total autoencoder loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss
+                total_loss.append(ae_loss)
+
+            # Compute gradients for encoder and decoder
+            trainable_variables = encoder.trainable_variables + decoder.trainable_variables
+            recon_gradients = tape.gradient(lambda_recon * recon_loss, trainable_variables)
+            adv_gradients = tape.gradient(lambda_adv * adv_loss, trainable_variables)
+
+            # MOO: Compute the L2 norm of all loss gradients
+            recon_loss_norm = L2_norm(recon_gradients)
+            adv_loss_norm = L2_norm(adv_gradients)
+            
+            # MOO: Compute the average gradient magnitude for the epoch
+            grad_avg = (recon_loss_norm + adv_loss_norm) / 2.0
+
+            # MOO: Calculate r_i as in GradNorm formula
+            if L_0_recon is not None and L_0_adv is not None:
+                r_recon = (recon_loss / (L_0_recon + epsilon))
+                r_adv = (adv_loss / (L_0_adv + epsilon))
+
+                # MOO: Update weights for the losses
+                lambda_recon.assign(lambda_recon * (grad_avg * r_recon / (recon_loss_norm + epsilon)))
+                lambda_adv.assign(lambda_adv * (grad_avg * r_adv / (adv_loss_norm + epsilon)))
+            
+            # MOO: Perform true backpropagation
+            # Determine appropriate values for weights
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
                 z_imgs, z_score = encoder(image_batch, training=True)
@@ -75,12 +144,18 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
                 # Total autoencoder loss
-                ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss
                 total_loss.append(ae_loss)
 
-            # Compute gradients for encoder and decoder
-            trainable_variables = encoder.trainable_variables + decoder.trainable_variables
+            # # MOO: Scale gradients by the L2 norm
+            # scaled_ae_gradients = scale_gradients(gradients, ae_loss_norm, config['lambda_recon'])
+
+            # # MOO: Backpropagation for autoencoder (encoder + decoder)
+            # ae_optimizer.apply_gradients(zip(scaled_ae_gradients, trainable_variables))
+
+            # Backpropagation for autoencoder (encoder + decoder)
             gradients = tape.gradient(ae_loss, trainable_variables)
+            ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
             # Train the discriminator
             rand_vecs = tf.random.normal(shape=(config['batch_size'], config['latent_dim']))
@@ -94,20 +169,7 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
 
             # Calculate gradients for discriminator
             disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
-
-            # Compute the L2 norm of all loss gradients
-            ae_loss_norm = L2_norm(gradients)
-            disc_loss_norm = L2_norm(disc_gradients)
-
-            # Scale gradients by the L2 norm
-            scaled_ae_gradients = scale_gradients(gradients, ae_loss_norm, config['lambda_recon'])
-            scaled_disc_gradients = scale_gradients(disc_gradients, disc_loss_norm, config['lambda_adv'])
-
-            # Backpropagation for autoencoder (encoder + decoder)
-            ae_optimizer.apply_gradients(zip(scaled_ae_gradients, trainable_variables))
-
-            # Backpropagation for discriminator
-            disc_optimizer.apply_gradients(zip(scaled_disc_gradients, discriminator.trainable_variables))
+            disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
 
             # Track individual losses for adjustment
             epoch_reconstruction_losses.append(config['lambda_recon'] * recon_loss)
