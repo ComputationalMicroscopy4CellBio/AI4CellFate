@@ -27,12 +27,19 @@ def convert_namespace_to_dict(config): # TEMPORARY: Helper function to convert N
         return {key: getattr(config, key) for key in vars(config)}
     return config # If it's already a dictionary, return as is
 
+def set_seed(seed):
+    """Set the random seed for reproducibility."""
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    import random
+    random.seed(seed)
+
 def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
     print("hello")
-    np.random.seed(config['seed'])
-    tf.random.set_seed(config['seed'])
+    set_seed(config['seed'])
+    rng = np.random.default_rng(config['seed'])
 
     print(f"Training with batch size: {config['batch_size']}, epochs: {config['epochs']}, "
           f"learning rate: {config['learning_rate']}, seed: {config['seed']}, latent dim: {config['latent_dim']}")
@@ -60,7 +67,9 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
         epoch_reconstruction_losses, epoch_adversarial_losses = [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
-            idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
+            #idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
+            idx = rng.integers(0, x_train.shape[0], config['batch_size'])
+            #idx = np.random.default_rng(config['seed']).integers(0, x_train.shape[0], config['batch_size'])
             image_batch = x_train[idx]
 
             with tf.GradientTape() as tape:
@@ -84,8 +93,13 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             gradients = tape.gradient(ae_loss, trainable_variables)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
-            # Train the discriminator
-            rand_vecs = tf.random.normal(shape=(config['batch_size'], config['latent_dim']))
+            # Train the discriminator 
+            rand_vecs = tf.random.stateless_normal(
+                shape=(config['batch_size'], config['latent_dim']),
+                seed=(config['seed'], epoch + n_batch)
+            )
+            # which rand_vecs to use?
+            #rand_vecs = tf.random.normal(shape=(config['batch_size'], config['latent_dim']))
 
             with tf.GradientTape() as tape:
                 z_discriminator_out = discriminator(z_imgs, training=True)
