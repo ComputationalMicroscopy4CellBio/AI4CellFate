@@ -2,16 +2,48 @@ import numpy as np
 import os
 import tensorflow as tf
 from src.training.train import train_model 
+from src.evaluation.evaluate import Evaluation
 
-# Main function for training
+# Function to load data
+def load_data():
+    """Load training and testing data."""
+    x_train = np.load('./data/stretched_x_train.npy')  # TODO: replace with data loader later
+    x_test = np.load('./data/stretched_x_test.npy')
+    y_train = np.load('./data/train_labels.npy')
+    y_test = np.load('./data/test_labels.npy')
+    return x_train, x_test, y_train, y_test
+
+# Function to evaluate the model
+def evaluate_model(encoder, decoder, x_train, y_train, x_test, y_test, full_evaluation=False, output_dir="./results/evaluation"):
+    """Evaluate the trained model."""
+    evaluator = Evaluation(output_dir)
+    
+    z_imgs, _ = encoder.predict(x_train)
+    recon_imgs = decoder.predict(z_imgs)
+    print(recon_imgs)
+ 
+    evaluator.reconstruction_images(x_train, recon_imgs[:,:,:,0])
+    
+    # if full_evaluation: ##TODO later
+    #     # Predict labels and plot confusion matrix
+    #     y_pred = model.predict(x_test) 
+    #     evaluator.plot_confusion_matrix(y_test, y_pred, num_classes=2)
+        
+    #     # Visualize latent space
+    #     latent_space = model.encoder.predict(x_test)  # Assuming the encoder exists
+    #     evaluator.visualize_latent_space(latent_space, y_test)
+
+# Main function
 def main():
-    # Load the data
-    x_train = np.load('./data/stretched_x_train.npy') #TODO later: replace with data loader
+    """Main function with the full workflow of the CellFate project."""
+    
+    # Load data
+    x_train, x_test, y_train, y_test = load_data()
 
     # Config for training
     config = {
         'batch_size': 30,
-        'epochs': 3,
+        'epochs': 10,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 20,
@@ -20,8 +52,17 @@ def main():
         'lambda_adv': 0.05,
     }
 
-    # Train the autoencoder
-    train_model(config, x_train)
+    # Train the autoencoder model
+    autoencoder_results = train_model(config, x_train)
+    encoder = autoencoder_results['encoder']
+    decoder = autoencoder_results['decoder']
+
+    # Evaluate the model
+    evaluate_model(encoder, decoder, x_train, y_train, x_test, y_test)
+
+    # Train the full model
+   # full_model_results = train_cellfate(config, x_train, y_train, full_model=True)
+    # evaluate_model(encoder, decoder, x_train, y_train, x_test, y_test, full_evaluation=True)
 
 if __name__ == '__main__':
     main()
