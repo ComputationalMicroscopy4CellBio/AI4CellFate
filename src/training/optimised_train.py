@@ -50,12 +50,23 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     lambda_recon = tf.Variable(config["lambda_recon"], trainable=False, dtype=tf.float32)
     lambda_adv = tf.Variable(config["lambda_adv"], trainable=False, dtype=tf.float32)
 
+    # print(f"Lambdas: {lambda_recon * 1}, {lambda_adv * 1}")
+    # print(f"Lambdas np: {lambda_recon.numpy()}, {lambda_adv.numpy()}")
+
     # MOO: Initialise empty first losses - one for each loss
     L_0_recon = None
     L_0_adv = None
+    L_0_recon_list = []
+    L_0_adv_list = []
+
+    # MOO: Initialise empty average gradient norms list
+    grad_avgs = []
 
     # MOO: Initialise epsilon for safe division - could go in config
     epsilon = 1e-8
+
+    # MOO: Initialise beta parameter for GradNorm - could go in config
+    beta = 1.0
 
     # Placeholder for storing losses
     reconstruction_losses = []
@@ -70,7 +81,7 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
     for epoch in range(config['epochs']):
-        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_lambda_recon_vals, epoch_lambda_adv_vals = [], [], [], []
+        epoch_reconstruction_losses, epoch_adversarial_losses = [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
@@ -91,8 +102,8 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
                     L_adv_init = bce_loss(real_y, z_discriminator_out)
 
                 # Store them
-                L_0_recon = L_recon_init
-                L_0_adv = L_adv_init
+                L_0_recon_list = L_0_recon_list.append(L_recon_init)
+                L_0_adv_list = L_0_adv_list.append(L_adv_init)
                 del tape_init
 
             # Determine appropriate values for weights
@@ -114,28 +125,39 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
 
             # Compute gradients for encoder and decoder
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables
-            recon_gradients = tape.gradient(lambda_recon * recon_loss, trainable_variables)
-            adv_gradients = tape.gradient(lambda_adv * adv_loss, trainable_variables)
+            recon_gradients = tape.gradient(recon_loss, trainable_variables)
+            adv_gradients = tape.gradient(adv_loss, trainable_variables)
+            ae_gradients = tape.gradient(ae_loss, trainable_variables)
+
+            recon_gradients = [g * lambda_recon if g is not None else None for g in recon_gradients]
+            adv_gradients = [g * lambda_adv if g is not None else None for g in adv_gradients]
+            
+            # print("HERE BITCH")
+            # print(f"Lambdas: {lambda_recon.numpy()}, {lambda_adv.numpy()}")
+            # print(f"recon_loss: {lambda_recon * recon_loss}, adv_loss: {lambda_adv * adv_loss}, ae_loss: {ae_loss}")
+
+            # recon_gradients = tape.gradient(recon_loss, trainable_variables)
+            # adv_gradients = tape.gradient(adv_loss, trainable_variables)
+
+            #print(f"recon_gradients: {recon_gradients}, adv_gradients: {adv_gradients}, ae_gradients: {ae_gradients}")
+
+            #print(recon_gradients)
 
             # MOO: Compute the L2 norm of all loss gradients
             recon_loss_norm = L2_norm(recon_gradients)
             adv_loss_norm = L2_norm(adv_gradients)
 
+            # print(f"recon_loss_norm: {recon_loss_norm}, adv_loss_norm: {adv_loss_norm}, ae_loss_norm: {total_loss_norm}")
+
             # MOO: Compute the average gradient magnitude for the epoch
             grad_avg = (recon_loss_norm + adv_loss_norm) / 2.0
+            grad_avgs = grad_avgs.append(grad_avg)
 
-            # MOO: Calculate r_i as in GradNorm formula
-            if L_0_recon is not None and L_0_adv is not None:
-                r_recon = (recon_loss / (L_0_recon + epsilon))
-                r_adv = (adv_loss / (L_0_adv + epsilon))
+            # NOTE: Don't think we need to do this twice actually
 
-                # MOO: Update weights for the losses
-                lambda_recon.assign(lambda_recon * (grad_avg * r_recon / (recon_loss_norm + epsilon)))
-                lambda_adv.assign(lambda_adv * (grad_avg * r_adv / (adv_loss_norm + epsilon)))
-            
             # MOO: Perform true backpropagation
             # Determine appropriate values for weights
-            with tf.GradientTape() as tape:
+            with tf.GradientTape() as tape2:
                 # Forward pass through encoder and decoder
                 z_imgs, z_score = encoder(image_batch, training=True)
                 recon_imgs = decoder(z_imgs, training=True)[:, :, :, 0]
@@ -152,7 +174,8 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder (encoder + decoder)
-            gradients = tape.gradient(ae_loss, trainable_variables)
+            trainable_variables = encoder.trainable_variables + decoder.trainable_variables
+            gradients = tape2.gradient(ae_loss, trainable_variables)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
             # Train the discriminator
@@ -169,13 +192,9 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
             disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
 
-            # Track individual losses for adjustment
-            epoch_reconstruction_losses.append(config['lambda_recon'] * recon_loss)
-            epoch_adversarial_losses.append(config['lambda_adv'] * adv_loss)
-
-            # MOO: Store weights for the losses
-            epoch_lambda_recon_vals.append(lambda_recon.numpy())
-            epoch_lambda_adv_vals.append(lambda_adv.numpy())
+            # MOO: Track individual losses for adjustment - add in lambda values here (not config)
+            epoch_reconstruction_losses.append(lambda_recon * recon_loss)
+            epoch_adversarial_losses.append(lambda_adv * adv_loss)
 
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
@@ -184,18 +203,35 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
         reconstruction_losses.append(avg_recon_loss)
         adversarial_losses.append(avg_adv_loss)
 
-        # Store average weights for the epoch
-        avg_lambda_recon = np.mean(epoch_lambda_recon_vals)
-        avg_lambda_adv = np.mean(epoch_lambda_adv_vals)
+        # Store weights for the epoch
+        lambda_recon_vals.append(lambda_recon)
+        lambda_adv_vals.append(lambda_adv)
+        
+        # MOO: Get L_0 values if first epoch (average of lists)
+        if L_0_recon is None or L_0_adv is None:
+            L_0_recon = np.mean(L_0_recon_list)
+            L_0_adv = np.mean(L_0_adv_list)
 
-        lambda_recon_vals.append(avg_lambda_recon)
-        lambda_adv_vals.append(avg_lambda_adv)
+        # MOO: Update weights for the losses
+        if L_0_recon is not None and L_0_adv is not None:
+            r_recon = (avg_recon_loss / (L_0_recon + epsilon))
+            r_adv = (avg_adv_loss / (L_0_adv + epsilon))
+                
+            # MOO: Get average gradient norms
+            grad_avg = np.mean(grad_avgs)
+                
+            factor_recon = grad_avg * r_recon ** beta / (recon_loss_norm + epsilon)
+            factor_adv = grad_avg * r_adv ** beta / (adv_loss_norm + epsilon)
+            factor_recon = tf.clip_by_value(factor_recon, 1e-2, 1e2)
+            factor_adv   = tf.clip_by_value(factor_adv,   1e-2, 1e2)
+            lambda_recon.assign(lambda_recon * factor_recon)
+            lambda_adv.assign(lambda_adv * factor_adv)
 
         # Print and save results at the end of each epoch
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
-              f"Adversarial loss: {avg_adv_loss:.4f}",
-              f"Reconstruction lambda: {avg_lambda_recon:.4f}",
+              f"Adversarial loss: {avg_adv_loss:.4f}, "
+              f"Reconstruction lambda: {avg_lambda_recon:.4f}, "
               f"Adversarial lambda: {avg_lambda_adv:.4f}")
 
     if save_loss_plot:
