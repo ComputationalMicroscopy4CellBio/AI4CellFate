@@ -156,6 +156,132 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
         'adversarial_losses': adversarial_losses
     }
 
+def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_loss_plot=True, save_model_weights=True):
+    """Train the full CellFate model - the autoencoder and the classifier (MLP), 
+    with latent space disentanglement for interpretability."""
+
+    config = convert_namespace_to_dict(config)
+    set_seed(config['seed'])
+    rng = np.random.default_rng(config['seed'])
+
+    print(f"Training with batch size: {config['batch_size']}, epochs: {config['epochs']}, "
+          f"learning rate: {config['learning_rate']}, seed: {config['seed']}, latent dim: {config['latent_dim']}")
+
+    # Optimizers
+    ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
+    disc_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
+
+    # Placeholder for storing losses
+    reconstruction_losses = []
+    adversarial_losses = []
+    cov_losses = []
+    total_loss = []
+
+    real_y = 0.9 * np.ones((config['batch_size'], 1))
+    fake_y = 0.1 * np.ones((config['batch_size'], 1))
+
+    for epoch in range(config['epochs']): 
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses  = [], [], []
+
+        for n_batch in range(len(x_train) // config['batch_size']):
+            idx = rng.integers(0, x_train.shape[0], config['batch_size'])
+            #idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
+            image_batch = x_train[idx]
+
+            with tf.GradientTape() as tape:
+                # Forward pass through encoder and decoder
+                z_imgs, z_score = encoder(image_batch, training=True)
+                recon_imgs = decoder(z_imgs, training=True)[:, :, :, 0]
+
+                # Reconstruction loss
+                recon_loss = mse_loss(image_batch, recon_imgs)
+
+                # Adversarial loss for discriminator
+                z_discriminator_out = discriminator(z_imgs, training=True)
+                adv_loss = bce_loss(real_y, z_discriminator_out)
+
+                # Covariance loss
+                cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
+                cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss
+
+                # Total autoencoder loss
+                ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss + config['lambda_cov'] * cov_loss
+                total_loss.append(ae_loss)
+
+            # Backpropagation for autoencoder (encoder + decoder)
+            trainable_variables = encoder.trainable_variables + decoder.trainable_variables
+            gradients = tape.gradient(ae_loss, trainable_variables)
+            ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
+
+            # Train the discriminator
+            rand_vecs = tf.random.stateless_normal(
+                shape=(config['batch_size'], config['latent_dim']),
+                seed=(config['seed'], epoch + n_batch)
+            )
+            #rand_vecs = tf.random.normal(shape=(config['batch_size'], config['latent_dim']))
+
+            with tf.GradientTape() as tape:
+                z_discriminator_out = discriminator(z_imgs, training=True)
+                rand_discriminator_out = discriminator(rand_vecs, training=True)
+
+                discriminator_loss = 0.5 * bce_loss(real_y, rand_discriminator_out) + \
+                                     0.5 * bce_loss(fake_y, z_discriminator_out)
+
+            # Update discriminator weights
+            disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
+            disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
+
+            # Track individual losses for adjustment
+            epoch_reconstruction_losses.append(config['lambda_recon'] * recon_loss)
+            epoch_adversarial_losses.append(config['lambda_adv'] * adv_loss)
+            epoch_cov_losses.append(config['lambda_cov'] * cov_loss)
+        
+
+        # Store average losses for the epoch
+        avg_recon_loss = np.mean(epoch_reconstruction_losses)
+        avg_adv_loss = np.mean(epoch_adversarial_losses)
+        avg_cov_loss = np.mean(epoch_cov_losses)
+
+        reconstruction_losses.append(avg_recon_loss)
+        adversarial_losses.append(avg_adv_loss)
+        cov_losses.append(avg_cov_loss)
+
+        # Print and save results at the end of each epoch
+        print(f"Epoch {epoch + 1}/{config['epochs']}: "
+              f"Reconstruction loss: {avg_recon_loss:.4f}, "
+              f"Adversarial loss: {avg_adv_loss:.4f}, "
+              f"Covariance loss: {avg_cov_loss:.4f}")
+
+    if save_loss_plot:
+        print("Saving loss plot...")
+        save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, config['epochs'])
+    
+    if save_model_weights:
+        print("Saving model weights...")
+        output_dir = "./results/models"
+        os.makedirs(output_dir, exist_ok=True)
+
+        encoder_weights_path = os.path.join(output_dir, "encoder.weights.h5")
+        decoder_weights_path = os.path.join(output_dir, "decoder.weights.h5")
+        discriminator_weights_path = os.path.join(output_dir, "discriminator.weights.h5")
+
+        encoder.save_weights(encoder_weights_path)
+        decoder.save_weights(decoder_weights_path)
+        discriminator.save_weights(discriminator_weights_path)
+
+        print(f"Encoder weights saved to {encoder_weights_path}")
+        print(f"Decoder weights saved to {decoder_weights_path}")
+        print(f"Discriminator weights saved to {discriminator_weights_path}")
+
+    return {
+        'encoder': encoder,
+        'decoder': decoder,
+        'discriminator': discriminator,
+        'reconstruction_losses': reconstruction_losses,
+        'adversarial_losses': adversarial_losses,
+    }
+
+
 def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test, save_loss_plot=True, save_model_weights=True):
     """Train the full CellFate model - the autoencoder and the classifier (MLP), 
     with latent space disentanglement for interpretability."""
@@ -328,6 +454,33 @@ def save_loss_plots(reconstruction_losses, adversarial_losses, epochs):
     # Plot both reconstruction and adversarial losses with different colors
     plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
     plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
+
+    # Title and labels
+    plt.title(f"Training Losses", fontsize=14)
+    plt.xlabel('Epochs', fontsize=12)
+    plt.ylabel('Loss', fontsize=12)
+    
+    # Add a grid and legend
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.legend(loc='upper right', fontsize=12)
+    
+    # Save the plot with a dpi of 300
+    results_dir = './results/loss_plots'
+    os.makedirs(results_dir, exist_ok=True)
+    plt.savefig(f"{results_dir}/loss_plot.png", dpi=300)
+
+    # Close the plot to avoid memory issues
+    plt.close()
+
+
+def save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, epochs):
+    # Create loss plot and save it under the 'results' directory
+    plt.figure(figsize=(10, 5))
+
+    # Plot both reconstruction and adversarial losses with different colors
+    plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
+    plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
+    plt.plot(cov_losses, label='Covariance Loss', color='purple', linestyle='-.', linewidth=2)
 
     # Title and labels
     plt.title(f"Training Losses", fontsize=14)
