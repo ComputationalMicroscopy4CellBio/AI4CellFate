@@ -54,7 +54,7 @@ def main():
         'batch_size': 30,
         'epochs': 10,
         'learning_rate': 0.001,
-        'seed': 42,
+        'seed': 69,
         'latent_dim': 20,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5, 
@@ -73,9 +73,9 @@ def main():
 
     config = {
         'batch_size': 30,
-        'epochs': 40,
+        'epochs': 50,
         'learning_rate': 0.0001,
-        'seed': 42,
+        'seed': 69,
         'latent_dim': 20,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5, 
