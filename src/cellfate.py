@@ -1,8 +1,8 @@
 import numpy as np
 import os
 import tensorflow as tf
-#from src.training.train import train_model, train_cellfate, train_cov
-from src.training.optimised_train import train_cov
+from src.training.train import train_model, train_cellfate, train_cov
+#from src.training.optimised_train import train_cov
 from src.evaluation.evaluate import Evaluation
 from src.training.loss_functions import cov_loss_terms
 
@@ -51,26 +51,26 @@ def main():
     x_train, x_test, y_train, y_test = load_data()
 
     # Config for training
-    # config = {
-    #     'batch_size': 30,
-    #     'epochs': 10,
-    #     'learning_rate': 0.001,
-    #     'seed': 69,
-    #     'latent_dim': 10,
-    #     'GaussianNoise_std': 0.003,
-    #     'lambda_recon': 5, 
-    #     'lambda_adv': 0.05,
-    #     'lambda_clf': 0.05,
-    #     'lambda_cov': 0.1,
-    # }
+    config = {
+        'batch_size': 30,
+        'epochs': 10,
+        'learning_rate': 0.001,
+        'seed': 69,
+        'latent_dim': 10,
+        'GaussianNoise_std': 0.003,
+        'lambda_recon': 5, 
+        'lambda_adv': 0.05,
+        'lambda_clf': 0.05,
+        'lambda_cov': 0.1,
+    }
 
-    # # Train the autoencoder model
-    # autoencoder_results = train_model(config, x_train)
-    # encoder = autoencoder_results['encoder']
-    # decoder = autoencoder_results['decoder']
-    # discriminator = autoencoder_results['discriminator']
+    # Train the autoencoder model
+    autoencoder_results = train_model(config, x_train)
+    encoder = autoencoder_results['encoder']
+    decoder = autoencoder_results['decoder']
+    discriminator = autoencoder_results['discriminator']
 
-    #evaluate_model(encoder, decoder, None, x_train, y_train, x_test, y_test)
+    evaluate_model(encoder, decoder, None, x_train, y_train, x_test, y_test)
 
     config = {
         'batch_size': 30,
@@ -86,7 +86,7 @@ def main():
     }
 
     # Train the model with cov only
-    full_model_results = train_cov(config, x_train, y_train)
+    full_model_results = train_cov(config, encoder, decoder, discriminator, x_train, y_train)
     final_encoder = full_model_results['encoder']
     final_decoder = full_model_results['decoder']
 

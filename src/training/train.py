@@ -200,7 +200,7 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
                 z_discriminator_out = discriminator(z_imgs, training=True)
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
-                # Covariance loss
+                # Covariance loss TODO: CHECK THIS LOSS
                 cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
                 cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss
 
