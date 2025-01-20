@@ -27,7 +27,7 @@ class Encoder:
         z = BatchNormalization()(z)
 
         z_split = Lambda(lambda x: tf.split(x, num_or_size_splits=self.latent_dim // 2, axis=1))(z) #### FORCING THE 2 FIRST LATENT FEATURES TO BE CORRELATED WITH CLASSIFICATION
-        clfscore = Dense(self.num_classes, activation='softmax')(z_split[0])
+        clfscore = Dense(self.num_classes, activation='softmax')(z)
         encoder_model = Model(enc_input, [z, clfscore], name='encoder')
 
         return encoder_model
