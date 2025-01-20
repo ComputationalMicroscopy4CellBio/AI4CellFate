@@ -165,7 +165,7 @@ def L2_norm(grad_list):
         return tf.constant(0.0, dtype=tf.float32)
     return tf.sqrt(tf.add_n(squares))
 
-def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_loss_plot=True, save_model_weights=True):
+def train_cov(config, x_train, y_train, save_loss_plot=True, save_model_weights=True):
     """Train the full CellFate model - the autoencoder and the classifier (MLP), 
     with latent space disentanglement for interpretability."""
 
@@ -175,6 +175,13 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
 
     print(f"Training with batch size: {config['batch_size']}, epochs: {config['epochs']}, "
           f"learning rate: {config['learning_rate']}, seed: {config['seed']}, latent dim: {config['latent_dim']}")
+    
+    img_shape = (x_train.shape[1], x_train.shape[2], 1) # Assuming grayscale images
+
+    # Create model instances
+    encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
+    decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
+    discriminator = Discriminator(latent_dim=config['latent_dim']).model
 
     # Optimizers
     ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
@@ -224,7 +231,7 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
             image_batch = x_train[idx]
 
             # MOO: Measure baseline losses - do this for all loss functions
-            if L_0_recon is None or L_0_adv is None:
+            if L_0_recon is None or L_0_cov is None:
                 with tf.GradientTape() as tape_init:
                     # Forward pass through encoder and decoder
                     z_imgs, z_score = encoder(image_batch, training=True)
@@ -242,7 +249,7 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
                 L_0_cov_list.append(float(L_cov_init))
                 del tape_init
 
-            with tf.GradientTape() as tape:
+            with tf.GradientTape(persistent = True) as tape:
                 # Forward pass through encoder and decoder
                 z_imgs, z_score = encoder(image_batch, training=True)
                 recon_imgs = decoder(z_imgs, training=True)[:, :, :, 0]
@@ -275,15 +282,10 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
             cov_loss_norm = L2_norm(cov_gradients)
             recon_loss_norms.append(float(recon_loss_norm))
             cov_loss_norms.append(float(cov_loss_norm))
-
+            
             gradients = tape.gradient(ae_loss, trainable_variables)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
             del tape
-
-            # Backpropagation for autoencoder (encoder + decoder)
-            trainable_variables = encoder.trainable_variables + decoder.trainable_variables
-            gradients = tape.gradient(ae_loss, trainable_variables)
-            ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
             # Train the discriminator
             rand_vecs = tf.random.stateless_normal(
