@@ -126,7 +126,7 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
                 ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss
                 total_loss.append(ae_loss)
 
-            # Compute gradients for encoder and decoder
+            # MOO: Compute gradients for encoder and decoder - gradients for each loss
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables
             recon_gradients = tape.gradient(recon_loss, trainable_variables)
             adv_gradients = tape.gradient(adv_loss, trainable_variables)
@@ -169,14 +169,9 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
         reconstruction_losses.append(avg_recon_loss)
         adversarial_losses.append(avg_adv_loss)
 
-        # Store weights for the epoch
+        # MOO: Store weights for the epoch
         lambda_recon_vals.append(lambda_recon)
         lambda_adv_vals.append(lambda_adv)
-
-        # MOO: Normalise lambda values by sum of their totals
-        total_lambda.assign(lambda_recon + lambda_adv)
-        lambda_recon.assign(lambda_recon / total_lambda)
-        lambda_adv.assign(lambda_adv / total_lambda)
 
         # Print and save results at the end of each epoch
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
@@ -206,6 +201,11 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             factor_adv = tf.clip_by_value(factor_adv,   1e-2, 1e2)
             lambda_recon.assign(lambda_recon * tf.cast(factor_recon, tf.float32))
             lambda_adv.assign(lambda_adv * tf.cast(factor_adv, tf.float32))
+        
+        # MOO: Normalise lambda values by sum of their totals
+        total_lambda.assign(lambda_recon + lambda_adv)
+        lambda_recon.assign(lambda_recon / total_lambda)
+        lambda_adv.assign(lambda_adv / total_lambda)
 
     if save_loss_plot:
         print("Saving loss plot...")
