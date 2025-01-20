@@ -5,6 +5,6 @@ CONFIG = {
         'seed': 42,
         'latent_dim': 20,
         'GaussianNoise_std': 0.003,
-        'lambda_recon': 1, 
-        'lambda_adv': 1,
+        'lambda_recon': 0.5, 
+        'lambda_adv': 0.5,
     }
