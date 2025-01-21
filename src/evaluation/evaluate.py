@@ -8,9 +8,16 @@ class Evaluation:
     def __init__(self, output_dir="./results/evaluation"):
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
+    
+    def _get_epoch_dir(self, epoch):
+        """Create and return a subdirectory for a specific epoch."""
+        epoch_dir = os.path.join(self.output_dir, f"epoch_{epoch}")
+        os.makedirs(epoch_dir, exist_ok=True)
+        return epoch_dir
 
-    def reconstruction_images(self, image_batch, recon_imgs, n=10):
-        """Visualize original and reconstructed images."""
+    def reconstruction_images(self, image_batch, recon_imgs, epoch, n=10):
+        """Visualize and save original and reconstructed images for a specific epoch."""
+        epoch_dir = self._get_epoch_dir(epoch)
         plt.figure(figsize=(20, 4))
         for i in range(n):
             # Display original
@@ -27,7 +34,7 @@ class Evaluation:
             plt.axis("off")
             plt.colorbar()
         plt.tight_layout()
-        output_path = os.path.join(self.output_dir, "reconstruction_images.png")
+        output_path = os.path.join(epoch_dir, "reconstruction_images.png")
         plt.savefig(output_path, dpi=300)
         plt.show()
         print(f"Reconstruction images saved to {output_path}")
@@ -60,19 +67,21 @@ class Evaluation:
         plt.show()
         print(f"Confusion matrix saved to {output_path}")
 
-    def plot_cov_matrix(self, cov_matrix):
-        """Visualize and save the covariance matrix of latent variables."""
+    def plot_cov_matrix(self, cov_matrix, epoch):
+        """Visualize and save the covariance matrix of latent variables for a specific epoch."""
+        epoch_dir = self._get_epoch_dir(epoch)
         normalized_cov_matrix = (cov_matrix - np.min(cov_matrix)) / (np.max(cov_matrix) - np.min(cov_matrix))
         plt.imshow(normalized_cov_matrix, cmap="viridis", vmin=0.1, vmax=1.0)
         plt.colorbar()
         plt.title("Normalized Covariance Matrix")
-        output_path = os.path.join(self.output_dir, "cov_matrix.png")
+        output_path = os.path.join(epoch_dir, "cov_matrix.png")
         plt.savefig(output_path, dpi=300)
         plt.show()
         print(f"Covariance matrix saved to {output_path}")
 
-    def visualize_latent_space(self, latent_space, y_train):
-        """Visualize latent space features and their correlation with labels."""
+    def visualize_latent_space(self, latent_space, y_train, epoch):
+        """Visualize and save latent space features for a specific epoch."""
+        epoch_dir = self._get_epoch_dir(epoch)
         cor_vals = [np.corrcoef(np.eye(2)[y_train][:, 0], latent_space[:, i])[0, 1] for i in range(latent_space.shape[1])]
         cor_vals = np.array(cor_vals)
         feat_0, feat_1 = np.argsort(np.abs(cor_vals))[-2:]  # Find top 2 correlated features
@@ -91,7 +100,7 @@ class Evaluation:
         plt.legend(handles, ['Fate 0', 'Fate 1'], title="Classes", loc="lower right")
 
         # Save the plot
-        output_path = os.path.join(self.output_dir, "latent_space.png")
+        output_path = os.path.join(epoch_dir, "latent_space.png")
         plt.savefig(output_path, dpi=300)
         plt.show()
         print(f"Latent space visualization saved to {output_path}")

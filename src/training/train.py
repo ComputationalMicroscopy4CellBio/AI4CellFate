@@ -6,6 +6,7 @@ import numpy as np
 from ..config import CONFIG
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
+from ..evaluation.evaluate import Evaluation
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Training Configuration')
@@ -157,9 +158,6 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
     }
 
 def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_loss_plot=True, save_model_weights=True):
-    """Train the full CellFate model - the autoencoder and the classifier (MLP), 
-    with latent space disentanglement for interpretability."""
-
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -180,28 +178,29 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
+    # Initialize the evaluation class
+    evaluation = Evaluation(output_dir="./results/evaluation")
+
     for epoch in range(config['epochs']): 
-        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses  = [], [], []
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses = [], [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = rng.integers(0, x_train.shape[0], config['batch_size'])
-            #idx = np.random.randint(0, x_train.shape[0], config['batch_size'])
             image_batch = x_train[idx]
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
                 z_imgs, z_score = encoder(image_batch, training=True)
-                recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
+                recon_imgs = decoder(z_imgs, training=True)
 
                 # Reconstruction loss
-                #recon_loss = mse_loss(image_batch, recon_imgs)
                 recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
 
                 # Adversarial loss for discriminator
                 z_discriminator_out = discriminator(z_imgs, training=True)
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
-                # Covariance loss TODO: CHECK THIS LOSS
+                # Covariance loss
                 cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
                 cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss
 
@@ -209,7 +208,7 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
                 ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss + config['lambda_cov'] * cov_loss
                 total_loss.append(ae_loss)
 
-            # Backpropagation for autoencoder (encoder + decoder)
+            # Backpropagation for autoencoder
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables
             gradients = tape.gradient(ae_loss, trainable_variables)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
@@ -219,8 +218,6 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
                 shape=(config['batch_size'], config['latent_dim']),
                 seed=(config['seed'], epoch + n_batch)
             )
-            #rand_vecs = tf.random.normal(shape=(config['batch_size'], config['latent_dim']))
-
             with tf.GradientTape() as tape:
                 z_discriminator_out = discriminator(z_imgs, training=True)
                 rand_discriminator_out = discriminator(rand_vecs, training=True)
@@ -237,7 +234,6 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
             epoch_adversarial_losses.append(config['lambda_adv'] * adv_loss)
             epoch_cov_losses.append(config['lambda_cov'] * cov_loss)
         
-
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
@@ -247,16 +243,34 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
         adversarial_losses.append(avg_adv_loss)
         cov_losses.append(avg_cov_loss)
 
-        # Print and save results at the end of each epoch
+        # Print progress
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
               f"Covariance loss: {avg_cov_loss:.4f}")
 
+        # Save visualizations every 10 epochs
+        if (epoch + 1) % 10 == 0:
+            epoch_dir = os.path.join(evaluation.output_dir, f"epoch_{epoch + 1}")
+            os.makedirs(epoch_dir, exist_ok=True)
+
+            all_z_imgs = encoder.predict(x_train)[0]
+
+            # Save reconstruction images
+            evaluation.reconstruction_images(image_batch, recon_imgs, epoch + 1, n=10)
+            
+            # Save covariance matrix
+            evaluation.plot_cov_matrix(cov_loss_terms(all_z_imgs)[0], epoch + 1)
+            
+            # Save latent space visualization
+            evaluation.visualize_latent_space(all_z_imgs, y_train, epoch + 1)
+
+    # Save final loss plot
     if save_loss_plot:
         print("Saving loss plot...")
         save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, config['epochs'])
     
+    # Save model weights
     if save_model_weights:
         print("Saving model weights...")
         output_dir = "./results/models"

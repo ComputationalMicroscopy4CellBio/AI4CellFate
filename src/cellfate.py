@@ -70,7 +70,7 @@ def main():
     decoder = autoencoder_results['decoder']
     discriminator = autoencoder_results['discriminator']
 
-    evaluate_model(encoder, decoder, None, x_train, y_train, x_test, y_test)
+    #evaluate_model(encoder, decoder, None, x_train, y_train, x_test, y_test)
 
     config = {
         'batch_size': 30,
@@ -90,7 +90,7 @@ def main():
     final_encoder = full_model_results['encoder']
     final_decoder = full_model_results['decoder']
 
-    evaluate_model(final_encoder, final_decoder, 0, x_train, y_train, x_test, y_test, full_evaluation=True)
+    #evaluate_model(final_encoder, final_decoder, 0, x_train, y_train, x_test, y_test, full_evaluation=True)
 
 #    # Train the full model
 #     full_model_results = train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test)
