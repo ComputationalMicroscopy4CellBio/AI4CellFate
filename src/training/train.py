@@ -74,10 +74,10 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
                 z_imgs, z_score = encoder(image_batch, training=True)
-                recon_imgs = decoder(z_imgs, training=True)[:, :, :, 0]
+                recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
 
                 # Reconstruction loss
-                recon_loss = mse_loss(image_batch, recon_imgs)
+                recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
 
                 # Adversarial loss for discriminator
                 z_discriminator_out = discriminator(z_imgs, training=True)
@@ -191,10 +191,11 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
                 z_imgs, z_score = encoder(image_batch, training=True)
-                recon_imgs = decoder(z_imgs, training=True)[:, :, :, 0]
+                recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
 
                 # Reconstruction loss
-                recon_loss = mse_loss(image_batch, recon_imgs)
+                #recon_loss = mse_loss(image_batch, recon_imgs)
+                recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
 
                 # Adversarial loss for discriminator
                 z_discriminator_out = discriminator(z_imgs, training=True)

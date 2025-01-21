@@ -55,11 +55,11 @@ def main():
         'batch_size': 30,
         'epochs': 10,
         'learning_rate': 0.001,
-        'seed': 69,
+        'seed': 42,
         'latent_dim': 10,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5, 
-        'lambda_adv': 0.05,
+        'lambda_adv': 0.5,
         'lambda_clf': 0.05,
         'lambda_cov': 0.1,
     }
@@ -74,15 +74,15 @@ def main():
 
     config = {
         'batch_size': 30,
-        'epochs': 10,
+        'epochs': 50,
         'learning_rate': 0.001,
-        'seed': 69,
+        'seed': 42,
         'latent_dim': 10,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5, 
-        'lambda_adv': 0.05,
-        'lambda_clf': 0.05,
-        'lambda_cov': 0.1,
+        'lambda_adv': 0.5,
+        'lambda_clf': 0.5,
+        'lambda_cov': 1,
     }
 
     # Train the model with cov only
@@ -92,14 +92,14 @@ def main():
 
     evaluate_model(final_encoder, final_decoder, 0, x_train, y_train, x_test, y_test, full_evaluation=True)
 
-    # Train the full model
-    # full_model_results = train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test)
-    # final_encoder = full_model_results['encoder']
-    # final_decoder = full_model_results['decoder']
-    # classifier = full_model_results['classifier']
+#    # Train the full model
+#     full_model_results = train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test)
+#     final_encoder = full_model_results['encoder']
+#     final_decoder = full_model_results['decoder']
+#     classifier = full_model_results['classifier']
 
-    # Evaluate the model
-    #evaluate_model(final_encoder, final_decoder, classifier, x_train, y_train, x_test, y_test, full_evaluation=True)
+#   #  Evaluate the model
+#     evaluate_model(final_encoder, final_decoder, classifier, x_train, y_train, x_test, y_test, full_evaluation=True)
 
 if __name__ == '__main__':
     main()
