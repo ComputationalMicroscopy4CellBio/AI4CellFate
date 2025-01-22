@@ -36,7 +36,7 @@ class Evaluation:
         plt.tight_layout()
         output_path = os.path.join(epoch_dir, "reconstruction_images.png")
         plt.savefig(output_path, dpi=300)
-        plt.show()
+        plt.close()
         print(f"Reconstruction images saved to {output_path}")
 
     def plot_confusion_matrix(self, y_test, y_pred, num_classes):
@@ -64,7 +64,7 @@ class Evaluation:
         plt.tight_layout()
         output_path = os.path.join(self.output_dir, "confusion_matrix.png")
         plt.savefig(output_path, dpi=300)
-        plt.show()
+        plt.close()
         print(f"Confusion matrix saved to {output_path}")
 
     def plot_cov_matrix(self, cov_matrix, epoch):
@@ -76,7 +76,7 @@ class Evaluation:
         plt.title("Normalized Covariance Matrix")
         output_path = os.path.join(epoch_dir, "cov_matrix.png")
         plt.savefig(output_path, dpi=300)
-        plt.show()
+        plt.close()
         print(f"Covariance matrix saved to {output_path}")
 
     def visualize_latent_space(self, latent_space, y_train, epoch):
@@ -102,7 +102,7 @@ class Evaluation:
         # Save the plot
         output_path = os.path.join(epoch_dir, "latent_space.png")
         plt.savefig(output_path, dpi=300)
-        plt.show()
+        plt.close()
         print(f"Latent space visualization saved to {output_path}")
 
     def calculate_kl_divergence(self, latent_samples, num_bins=100):
