@@ -174,8 +174,7 @@ def overimpose(images, segmentation):
     return overimposed_images
 
 
-
-############ TRACKS ############
+############ TRACKS ONLY ############
 
 class PreProcess:
     
@@ -260,6 +259,20 @@ def process_track_data(track):
 
     print("Filtered data shape", filtered_data.shape, y_train.shape)
     return filtered_data, y_train
+
+def daughter_indexes(track_data):
+    indices_to_remove = []
+
+    # Iterate over each cell
+    for cell_index in range(track_data.shape[0]):
+        # Get the `tpos` feature (feature index 3) across all time points for this cell
+        tpos_values = track_data[cell_index, :, 3]
+        
+        # Check if all required values (1, 2, and 3) are present
+        if not all(val in tpos_values for val in [1, 2, 3]):
+            indices_to_remove.append(cell_index)
+
+    return indices_to_remove
 
 
 def edge_indexes(image):
