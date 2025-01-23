@@ -143,6 +143,36 @@ def process_all_fovs(track_data, sub_size, bioreplicate = "BR1", segmentation = 
 #     "SHOULD I MAKE A FUNCTION THAT PROCESSES ALL TRACKS AT ONCE?"
 #     return images, segmentations, fret, y_train
 
+def edge_indexes(image):
+
+    # Check on the first frame and first channel
+    first_time_point_first_channel = image[:, 0, 0, :, :]
+    indices_to_remove = []
+
+    # Iterate over each cell to check for rows or columns full of zeros at the first time point
+    for cell_index in range(first_time_point_first_channel.shape[0]):
+        # Extract the cell's data at the first time point
+        cell_data = first_time_point_first_channel[cell_index]
+        
+        # Check if there is any row or column that is entirely zeros
+        has_zero_row = np.all(cell_data == 0, axis=1).any()  # Check rows
+        has_zero_column = np.all(cell_data == 0, axis=0).any()  # Check columns
+        
+        if has_zero_row or has_zero_column:
+            indices_to_remove.append(cell_index)
+
+    return indices_to_remove
+
+# Because my segmentations weren't binarised
+def binarize_segmentation(segmentation):
+    return (segmentation > 0).astype(int)
+
+def overimpose(images, segmentation):
+    overimposed_images = np.zeros_like(images[:,:,:2,:,:])
+    overimposed_images[:,:,0,:,:] = images[:,:,0,:,:] * binarize_segmentation(segmentation)
+    overimposed_images[:,:,1,:,:] = images[:,:,1,:,:] * binarize_segmentation(segmentation)
+    return overimposed_images
+
 
 
 ############ TRACKS ############
