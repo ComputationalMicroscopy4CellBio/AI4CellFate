@@ -157,7 +157,7 @@ def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
         'adversarial_losses': adversarial_losses
     }
 
-def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_loss_plot=True, save_model_weights=True):
+def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_loss_plot=True, save_model_weights=True, save_every_epoch=True):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -250,7 +250,7 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
               f"Covariance loss: {avg_cov_loss:.4f}")
 
         # Save visualizations every 10 epochs
-        if (epoch + 1) % 10 == 0:
+        if save_every_epoch and (epoch + 1) % 10 == 0:
             epoch_dir = os.path.join(evaluation.output_dir, f"epoch_{epoch + 1}")
             os.makedirs(epoch_dir, exist_ok=True)
 
@@ -337,10 +337,11 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
                 z_imgs, z_score = encoder(image_batch, training=True)
-                recon_imgs = decoder(z_imgs, training=True)[:, :, :, 0]
+                recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
 
                 # Reconstruction loss
-                recon_loss = mse_loss(image_batch, recon_imgs)
+                #recon_loss = mse_loss(image_batch, recon_imgs)
+                recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
 
                 # Adversarial loss for discriminator
                 z_discriminator_out = discriminator(z_imgs, training=True)
@@ -348,7 +349,8 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
 
                 # Classification loss
                 mlp_predictions = classifier(z_imgs, training=True)
-                classification_loss = bce_loss(np.eye(2)[y_train[idx]], mlp_predictions) # One-hot encoding
+                classification_loss = bce_loss(np.eye(2)[y_train[idx]], mlp_predictions)
+                #classification_loss = bce_loss(np.eye(2)[y_train[idx]], z_score) + bce_loss(z_score, np.eye(2)[y_train[idx]]) # One-hot encoding
 
                 # Covariance loss
                 cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
@@ -391,17 +393,17 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         epoch_val_clf_loss = []
         for n_batch in range(len(x_test) // config['batch_size']):
             #idx = np.random.randint(0, x_test.shape[0], config['batch_size'])
-            idx = rng.integers(0, x_test.shape[0], config['batch_size'])
-            test_image_batch = x_test[idx]
+            # idx = rng.integers(0, x_test.shape[0], config['batch_size'])
+            # test_image_batch = x_test[idx]
 
-            # Use the encoder to get the latent space representation
-            test_z_imgs, _ = encoder(test_image_batch, training=False)
+            # # Use the encoder to get the latent space representation
+            # test_z_imgs, _ = encoder(test_image_batch, training=False)
 
-            # Get the predictions from the classifier
-            mlp_predictions_val = classifier(test_z_imgs, training=False)
-            validation_classification_loss = bce_loss(np.eye(2)[y_test[idx]], mlp_predictions_val) # One-hot encoding
+            # # Get the predictions from the classifier
+            # mlp_predictions_val = classifier(test_z_imgs, training=False)
+            # validation_classification_loss = bce_loss(np.eye(2)[y_test[idx]], mlp_predictions_val) # One-hot encoding
             
-            epoch_val_clf_loss.append(validation_classification_loss)
+            epoch_val_clf_loss.append(0)
 
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
