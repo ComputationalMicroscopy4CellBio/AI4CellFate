@@ -45,3 +45,40 @@ class Encoder:
         d_res = SpectralNormalization(Conv2D(filters, kernel_size=1, strides=2, padding='same'))(layer_input)
         d = Add()([d, d_res])
         return d
+
+# class Encoder:
+#     def __init__(self, img_shape, latent_dim, num_classes, gaussian_noise_std):
+#         self.img_shape = img_shape
+#         self.latent_dim = latent_dim
+#         self.num_classes = num_classes
+#         self.gaussian_noise_std = gaussian_noise_std
+#         self.model = self.build_encoder()
+
+#     def build_encoder(self):
+#         enc_input = Input(shape=(self.img_shape[0], self.img_shape[1], self.img_shape[2]), name='encoder_input')
+
+#         # Initial Convolution
+#         X = SpectralNormalization(Conv2D(16, kernel_size=3, strides=1, padding='same', activation='relu'))(enc_input)
+#         X = MaxPooling2D(pool_size=2)(X)  # Downsample by 2x
+
+#         # Second Convolution Block
+#         X = SpectralNormalization(Conv2D(32, kernel_size=3, strides=1, padding='same', activation='relu'))(X)
+#         X = Dropout(0.3)(X)
+#         X = MaxPooling2D(pool_size=2)(X)  # Downsample further by 2x
+
+#         # Flatten and Dense Layers
+#         X = Flatten()(X)
+#         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
+#         X = Dense(64, activation='swish')(X)
+
+#         # Latent Space
+#         z = SpectralNormalization(Dense(self.latent_dim, activation=None))(X)
+#         z = GaussianNoise(stddev=self.gaussian_noise_std)(z)
+
+#         # Classification Head
+#         clfscore = Dense(self.num_classes, activation='softmax')(z)
+
+#         # Model
+#         encoder_model = Model(enc_input, [z, clfscore], name='encoder')
+
+#         return encoder_model
