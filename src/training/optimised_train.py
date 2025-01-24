@@ -376,16 +376,28 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
     print(f"Training with batch size: {config['batch_size']}, epochs: {config['epochs']}, "
           f"learning rate: {config['learning_rate']}, seed: {config['seed']}, latent dim: {config['latent_dim']}")
 
+    img_shape = (x_train.shape[1], x_train.shape[2], 1)
+
     # Optimizers
     ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
     disc_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
 
-    # Adjust the lambdas based on previous 5 epoch training
-    previous_encoder = encoder
-    previous_decoder = decoder
-    previous_discriminator = discriminator
-    losses = train_lambdas_cov(config, previous_encoder, previous_decoder, previous_discriminator, x_train, epochs=20)
+    # encoder_for_lambda = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
+    # decoder_for_lambda = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
+    # discriminator_for_lambda = Discriminator(latent_dim=config['latent_dim']).model
 
+    encoder_for_lambda = tf.keras.models.clone_model(encoder)
+    decoder_for_lambda = tf.keras.models.clone_model(decoder)
+    discriminator_for_lambda = tf.keras.models.clone_model(discriminator)
+
+    # Compile the cloned models if needed
+    encoder_for_lambda.compile(optimizer=ae_optimizer)
+    decoder_for_lambda.compile(optimizer=ae_optimizer)
+    discriminator_for_lambda.compile(optimizer=disc_optimizer)
+
+    losses = train_lambdas_cov(config, encoder_for_lambda, decoder_for_lambda, discriminator_for_lambda, x_train, epochs=20)
+
+    print("DID THE ENCODER CHANGE?",encoder_for_lambda==encoder)
     lambda_recon = 1/losses['recon_loss'][-1]
     lambda_adv = 1/losses['adv_loss'][-1]
     lambda_cov = 1/losses['cov_losses'][-1]
@@ -435,7 +447,7 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder
-            trainable_variables = encoder.trainable_variables + decoder.trainable_variables
+            trainable_variables = new_encoder.trainable_variables + decoder.trainable_variables
             gradients = tape.gradient(ae_loss, trainable_variables)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
@@ -479,16 +491,9 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
         if save_every_epoch and (epoch + 1) % 10 == 0:
             epoch_dir = os.path.join(evaluation.output_dir, f"epoch_{epoch + 1}")
             os.makedirs(epoch_dir, exist_ok=True)
-
             all_z_imgs = encoder.predict(x_train)[0]
-
-            # Save reconstruction images
             evaluation.reconstruction_images(image_batch, recon_imgs, epoch + 1, n=10)
-            
-            # Save covariance matrix
             evaluation.plot_cov_matrix(cov_loss_terms(all_z_imgs)[0], epoch + 1)
-            
-            # Save latent space visualization
             evaluation.visualize_latent_space(all_z_imgs, y_train, epoch + 1)
 
     # Save final loss plot
