@@ -4,7 +4,9 @@ import tensorflow as tf
 from src.training.train import train_model, train_cellfate, train_cov
 #from src.training.optimised_train import train_cov
 from src.evaluation.evaluate import Evaluation
+from src.models import Encoder, Decoder, Discriminator
 from src.training.loss_functions import cov_loss_terms
+from src.training.optimised_train import train_cov_scaled, train_autoencoder_scaled
 
 # Function to load data
 def load_data():
@@ -25,7 +27,7 @@ def evaluate_model(encoder, decoder, classifier, x_train, y_train, x_test, y_tes
     recon_imgs = decoder.predict(z_imgs)
     #print(recon_imgs)
  
-    evaluator.reconstruction_images(x_train, recon_imgs[:,:,:,0])
+    evaluator.reconstruction_images(x_train, recon_imgs[:,:,:,0], epoch=0)
     
     if full_evaluation: 
         # Predict labels and plot confusion matrix
@@ -34,11 +36,11 @@ def evaluate_model(encoder, decoder, classifier, x_train, y_train, x_test, y_tes
         # evaluator.plot_confusion_matrix(y_test, y_pred, num_classes=2)
         
         # Visualize latent space
-        evaluator.visualize_latent_space(z_imgs, y_train)
+        evaluator.visualize_latent_space(z_imgs, y_train, epoch=0)
 
         # Covariance matrix
         cov_matrix = cov_loss_terms(z_imgs)[0]
-        evaluator.plot_cov_matrix(cov_matrix)
+        evaluator.plot_cov_matrix(cov_matrix, epoch=0)
 
         # KL divergence
         print("KL Divergences in each dimension: ", evaluator.calculate_kl_divergence(z_imgs))
@@ -58,19 +60,19 @@ def main():
         'seed': 42,
         'latent_dim': 10,
         'GaussianNoise_std': 0.003,
-        'lambda_recon': 5, 
-        'lambda_adv': 0.5,
-        'lambda_clf': 0.05,
+        'lambda_recon': 1, 
+        'lambda_adv': 0.18156,
+        'lambda_clf': 0.5, #0.05 for the mlp
         'lambda_cov': 0.1,
     }
 
     # Train the autoencoder model
-    autoencoder_results = train_model(config, x_train)
+    autoencoder_results = train_autoencoder_scaled(config, x_train)
     encoder = autoencoder_results['encoder']
     decoder = autoencoder_results['decoder']
     discriminator = autoencoder_results['discriminator']
 
-    #evaluate_model(encoder, decoder, None, x_train, y_train, x_test, y_test)
+    evaluate_model(encoder, decoder, None, x_train, y_train, x_test, y_test)
 
     config = {
         'batch_size': 30,
@@ -79,20 +81,30 @@ def main():
         'seed': 42,
         'latent_dim': 10,
         'GaussianNoise_std': 0.003,
-        'lambda_recon': 5, 
-        'lambda_adv': 0.5,
-        'lambda_clf': 0.5,
-        'lambda_cov': 1,
+        'lambda_recon': 1, 
+        'lambda_adv': 0.1,
+        'lambda_clf': 0.1,
+        'lambda_cov': 0.2,
     }
 
-    # Train the model with cov only
-    full_model_results = train_cov(config, encoder, decoder, discriminator, x_train, y_train)
-    final_encoder = full_model_results['encoder']
-    final_decoder = full_model_results['decoder']
+    #Train the model with cov only
+    cov_model_results = train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train)
+    encoder_cov = cov_model_results['encoder']
+    decoder_cov = cov_model_results['decoder']
+    discriminator_cov = cov_model_results['discriminator']
 
-    #evaluate_model(final_encoder, final_decoder, 0, x_train, y_train, x_test, y_test, full_evaluation=True)
+    evaluate_model(encoder_cov, decoder_cov, 0, x_train, y_train, x_test, y_test, full_evaluation=True)
 
-#    # Train the full model
+    # img_shape = (x_train.shape[1], x_train.shape[2], 1)
+    # encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
+    # decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
+    # discriminator = Discriminator(latent_dim=config['latent_dim']).model
+
+    # encoder.load_weights("/Users/inescunha/Downloads/No_classifier_1000epochs/encoder.weights.h5")
+    # decoder.load_weights("/Users/inescunha/Downloads/No_classifier_1000epochs/decoder.weights.h5")
+    # discriminator.load_weights("/Users/inescunha/Downloads/No_classifier_1000epochs/discriminator.weights.h5")
+
+   # Train the full model
 #     full_model_results = train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test)
 #     final_encoder = full_model_results['encoder']
 #     final_decoder = full_model_results['decoder']
