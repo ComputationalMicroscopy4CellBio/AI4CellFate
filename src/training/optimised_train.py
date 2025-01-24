@@ -133,8 +133,6 @@ def train_lambdas_autoencoder(config, x_train, epochs=5):
         'adv_loss': adversarial_losses,
     }
 
-
-
 def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=20):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
@@ -160,9 +158,6 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=2
 
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
-
-    # Initialize the evaluation class
-    evaluation = Evaluation(output_dir="./results/evaluation")
 
     for epoch in range(epochs): 
         epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses = [], [], []
@@ -386,7 +381,11 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
     disc_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
 
     # Adjust the lambdas based on previous 5 epoch training
-    losses = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=5)
+    previous_encoder = encoder
+    previous_decoder = decoder
+    previous_discriminator = discriminator
+    losses = train_lambdas_cov(config, previous_encoder, previous_decoder, previous_discriminator, x_train, epochs=20)
+
     lambda_recon = 1/losses['recon_loss'][-1]
     lambda_adv = 1/losses['adv_loss'][-1]
     lambda_cov = 1/losses['cov_losses'][-1]
@@ -404,8 +403,6 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
 
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
-
-    ##### DONT FORGET: RE-INITIALIZE THE ENCODER AND DECODER TO THE ONES FROM THE INPUT AND NOT THE ONES FROM THE LAMBDA TRAINING
 
     # Initialize the evaluation class
     evaluation = Evaluation(output_dir="./results/evaluation")
@@ -591,11 +588,11 @@ def main():
             'latent_dim': 20,
             'GaussianNoise_std': 0.003
         }
-    x_train = np.random.rand(100, 20, 20)  # Random input data
-    y_train = np.random.randint(0, 2, 100)  # Random labels
-    x_test = np.random.rand(20, 20, 20)  # Random input data
-    y_test = np.random.randint(0, 2, 20)  # Random labels
-    train_cov(args, x_train, y_train, x_test, y_test)
+    # x_train = np.random.rand(100, 20, 20)  # Random input data
+    # y_train = np.random.randint(0, 2, 100)  # Random labels
+    # x_test = np.random.rand(20, 20, 20)  # Random input data
+    # y_test = np.random.randint(0, 2, 20)  # Random labels
+    # train_cov(args, x_train, y_train, x_test, y_test)
 
 if __name__ == '__main__':
     main()

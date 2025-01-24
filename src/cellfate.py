@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import tensorflow as tf
-from src.training.train import train_model, train_cellfate, train_cov
+from src.training.train import train_autoencoder, train_cellfate, train_cov
 #from src.training.optimised_train import train_cov
 from src.evaluation.evaluate import Evaluation
 from src.models import Encoder, Decoder, Discriminator
@@ -81,10 +81,10 @@ def main():
         'seed': 42,
         'latent_dim': 10,
         'GaussianNoise_std': 0.003,
-        'lambda_recon': 1, 
-        'lambda_adv': 0.1,
-        'lambda_clf': 0.1,
-        'lambda_cov': 0.2,
+        # 'lambda_recon': 0.7054, 
+        # 'lambda_adv': 0.1097,
+        # 'lambda_clf': 0.1,
+        # 'lambda_cov': 0.1848,
     }
 
     #Train the model with cov only
