@@ -64,8 +64,15 @@ def main():
     evaluate_model(scaled_autoencoder_results['encoder'], scaled_autoencoder_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder", full_evaluation=False)
 
     # Train the lambda optimisation autoencoder + cov
-    lambda_ae_cov_results = train_lambdas_autoencoder_cov(config, x_train)
+    lambda_ae_cov_results = train_lambdas_cov(config, x_train)
+    encoder = lambda_ae_cov_results['encoder']
+    decoder = lambda_ae_cov_results['decoder']
+    discriminator = lambda_ae_cov_results['discriminator']
+    reconstruction_losses = lambda_ae_cov_results['recon_loss']
+    adversarial_losses = lambda_ae_cov_results['adv_loss']
 
+    # Train the autoencoder starting from the optimal lambdas
+    #scaled_ae_cov_results = train_autoencoder_scaled(config, x_train, reconstruction_losses, adversarial_losses, encoder, decoder, discriminator)
 
 
 
