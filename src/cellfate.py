@@ -23,7 +23,7 @@ def evaluate_model(encoder, decoder, classifier, x_train, y_train, x_test, y_tes
     evaluator = Evaluation(output_dir)
     
     print("HERE")
-    z_imgs, _ = encoder.predict(x_train)
+    z_imgs = encoder.predict(x_train)
     recon_imgs = decoder.predict(z_imgs)
     #print(recon_imgs)
  
@@ -67,28 +67,36 @@ def main():
     }
 
     # Train the autoencoder model
-    autoencoder_results = train_autoencoder_scaled(config, x_train)
-    encoder = autoencoder_results['encoder']
-    decoder = autoencoder_results['decoder']
-    discriminator = autoencoder_results['discriminator']
+    # autoencoder_results = train_autoencoder_scaled(config, x_train)
+    # encoder = autoencoder_results['encoder']
+    # decoder = autoencoder_results['decoder']
+    # discriminator = autoencoder_results['discriminator']
 
-    evaluate_model(encoder, decoder, None, x_train, y_train, x_test, y_test)
+    # evaluate_model(encoder, decoder, None, x_train, y_train, x_test, y_test)
+    img_shape = (x_train.shape[1], x_train.shape[2], 1)
+    encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
+    decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
+    discriminator = Discriminator(latent_dim=config['latent_dim']).model
+
+    encoder.load_weights("/Users/inescunha/Documents/GitHub/CellFate/results/models/autoencoder/encoder.weights.h5")
+    decoder.load_weights("/Users/inescunha/Documents/GitHub/CellFate/results/models/autoencoder/decoder.weights.h5")
+    discriminator.load_weights("/Users/inescunha/Documents/GitHub/CellFate/results/models/autoencoder/discriminator.weights.h5")
 
     config = {
         'batch_size': 30,
-        'epochs': 50,
+        'epochs': 10,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 10,
         'GaussianNoise_std': 0.003,
-        # 'lambda_recon': 0.7054, 
-        # 'lambda_adv': 0.1097,
-        # 'lambda_clf': 0.1,
-        # 'lambda_cov': 0.1848,
+        'lambda_recon': 0.7085, 
+        'lambda_adv': 0.1094,
+        'lambda_clf': 0.1,
+        'lambda_cov': 0.1821,
     }
 
     #Train the model with cov only
-    cov_model_results = train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train)
+    cov_model_results = train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, save_every_epoch=False)
     encoder_cov = cov_model_results['encoder']
     decoder_cov = cov_model_results['decoder']
     discriminator_cov = cov_model_results['discriminator']
