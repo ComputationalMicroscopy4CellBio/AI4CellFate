@@ -11,14 +11,13 @@ def load_data():
     y_test = np.load('./data/test_labels.npy')
     return x_train, x_test, y_train, y_test
 
-def evaluate_model(encoder, decoder, x_train, y_train, full_evaluation=False, output_dir="./results/evaluation"):
+def evaluate_model(encoder, decoder, x_train, y_train, output_dir, full_evaluation=False):
     """Evaluate the trained model."""
     evaluator = Evaluation(output_dir)
     
     print("HERE")
     z_imgs = encoder.predict(x_train)
     recon_imgs = decoder.predict(z_imgs)
-    #print(recon_imgs)
  
     evaluator.reconstruction_images(x_train, recon_imgs[:,:,:,0], epoch=0)
     
@@ -61,8 +60,16 @@ def main():
     # Train the autoencoder starting from the optimal lambdas
     scaled_autoencoder_results = train_autoencoder_scaled(config, x_train, reconstruction_losses, adversarial_losses, encoder, decoder, discriminator)
 
+    # Evaluate the autoencoder
+    evaluate_model(scaled_autoencoder_results['encoder'], scaled_autoencoder_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder", full_evaluation=False)
 
-    #evaluate_model(encoder_cov, decoder_cov, 0, x_train, y_train, x_test, y_test, full_evaluation=True)
+    # Train the lambda optimisation autoencoder + cov
+    lambda_ae_cov_results = train_lambdas_autoencoder_cov(config, x_train)
+
+
+
+
+    #evaluate_model(scaled_autoencoder_results['encoder'], scaled_autoencoder_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder_cov", full_evaluation=False)
  
 if __name__ == '__main__':
     main()

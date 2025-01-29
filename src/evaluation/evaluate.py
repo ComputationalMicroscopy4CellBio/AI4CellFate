@@ -5,7 +5,7 @@ from sklearn.metrics import confusion_matrix
 from scipy.stats import norm, entropy
 
 class Evaluation:
-    def __init__(self, output_dir="./results/evaluation"):
+    def __init__(self, output_dir):
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
     
