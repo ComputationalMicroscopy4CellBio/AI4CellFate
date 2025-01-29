@@ -11,8 +11,8 @@ class Evaluation:
     
     def _get_epoch_dir(self, epoch):
         """Create and return a subdirectory for a specific epoch."""
-        epoch_dir = os.path.join(self.output_dir, f"epoch_{epoch}")
-        os.makedirs(epoch_dir, exist_ok=True)
+        # epoch_dir = os.path.join(self.output_dir, f"epoch_{epoch}")
+        # os.makedirs(epoch_dir, exist_ok=True)
         return self.output_dir
 
     def reconstruction_images(self, image_batch, recon_imgs, epoch, n=10):

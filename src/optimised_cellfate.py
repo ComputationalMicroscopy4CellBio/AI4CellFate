@@ -41,7 +41,7 @@ def main():
     # Config for training
     config = {
         'batch_size': 30,
-        'epochs': 10,
+        'epochs': 30,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 10,
@@ -75,7 +75,7 @@ def main():
     cov_losses = lambda_ae_cov_results['cov_loss']
 
     # Train the autoencoder starting from the optimal lambdas
-    scaled_ae_cov_results = train_autoencoder_scaled(config, x_train, reconstruction_losses, adversarial_losses, cov_losses, encoder, decoder, discriminator)
+    scaled_ae_cov_results = train_cov_scaled(config, x_train, reconstruction_losses, adversarial_losses, cov_losses, encoder, decoder, discriminator)
 
     evaluate_model(scaled_ae_cov_results['encoder'], scaled_ae_cov_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder_cov", full_evaluation=False)
  
