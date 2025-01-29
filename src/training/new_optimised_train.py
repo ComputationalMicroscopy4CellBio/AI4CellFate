@@ -9,7 +9,7 @@ from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
 
 
-def train_lambdas_autoencoder(config, x_train, encoder, decoder, discriminator, epochs=5):
+def train_lambdas_autoencoder(config, x_train, encoder=None, decoder=None, discriminator=None, epochs=5):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
@@ -106,6 +106,9 @@ def train_lambdas_autoencoder(config, x_train, encoder, decoder, discriminator, 
               f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
 
     return {
+        'encoder': encoder,
+        'decoder': decoder,
+        'discriminator': discriminator,
         'recon_loss': reconstruction_losses,
         'adv_loss': adversarial_losses,
     }

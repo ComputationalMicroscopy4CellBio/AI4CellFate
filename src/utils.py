@@ -29,6 +29,8 @@ def save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, outpu
     plt.figure(figsize=(10, 5))
 
     # Plot both reconstruction and adversarial losses with different colors
+    print(reconstruction_losses)
+    print("len:",len(reconstruction_losses))
     plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
     plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
 
