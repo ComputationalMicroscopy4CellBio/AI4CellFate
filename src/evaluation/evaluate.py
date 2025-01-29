@@ -13,7 +13,7 @@ class Evaluation:
         """Create and return a subdirectory for a specific epoch."""
         epoch_dir = os.path.join(self.output_dir, f"epoch_{epoch}")
         os.makedirs(epoch_dir, exist_ok=True)
-        return epoch_dir
+        return self.output_dir
 
     def reconstruction_images(self, image_batch, recon_imgs, epoch, n=10):
         """Visualize and save original and reconstructed images for a specific epoch."""

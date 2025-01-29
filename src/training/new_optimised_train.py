@@ -434,9 +434,9 @@ def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_lo
         avg_adv_loss = np.mean(epoch_adversarial_losses)
         avg_cov_loss = np.mean(epoch_cov_losses)
 
-        reconstruction_losses.append(avg_recon_loss)
-        adversarial_losses.append(avg_adv_loss)
-        cov_losses.append(avg_cov_loss)
+        reconstruction_losses_total.append(avg_recon_loss)
+        adversarial_losses_total.append(avg_adv_loss)
+        cov_losses_total.append(avg_cov_loss)
 
         # Print progress
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
@@ -447,17 +447,18 @@ def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_lo
     # Save final loss plot
     if save_loss_plot:
         print("Saving loss plot...")
-        save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, config['epochs'])
+        save_loss_plots_cov(reconstruction_losses_total, adversarial_losses_total, cov_losses_total, output_dir="./results/loss_plots/autoencoder_cov")
     
     # Save model weights
     if save_model_weights:
         print("Saving model weights...")
-        save_model_weights_to_disk(encoder, decoder, discriminator, model_name="cov")
+        save_model_weights_to_disk(encoder, decoder, discriminator, output_dir="./results/models/autoencoder_cov")
 
     return {
         'encoder': encoder,
         'decoder': decoder,
         'discriminator': discriminator,
-        'reconstruction_losses': reconstruction_losses,
-        'adversarial_losses': adversarial_losses,
+        'reconstruction_losses': reconstruction_losses_total,
+        'adversarial_losses': adversarial_losses_total,
+        'cov_losses': cov_losses_total
     }
