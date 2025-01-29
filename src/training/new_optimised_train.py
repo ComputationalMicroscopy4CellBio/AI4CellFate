@@ -134,8 +134,8 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
     adversarial_losses_total = []
     total_loss = []
 
-    reconstruction_losses_total.append(reconstruction_losses)
-    adversarial_losses_total.append(adversarial_losses)
+    reconstruction_losses_total.extend(reconstruction_losses)
+    adversarial_losses_total.extend(adversarial_losses)
 
     lambda_recon = 1/reconstruction_losses[-1]
     lambda_adv = 1/adversarial_losses[-1]

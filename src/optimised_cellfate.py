@@ -1,5 +1,6 @@
 import numpy as np
 from src.training.new_optimised_train import *
+from src.evaluation.evaluate import Evaluation
 
 # Function to load data
 def load_data():
@@ -10,6 +11,27 @@ def load_data():
     y_test = np.load('./data/test_labels.npy')
     return x_train, x_test, y_train, y_test
 
+def evaluate_model(encoder, decoder, x_train, y_train, full_evaluation=False, output_dir="./results/evaluation"):
+    """Evaluate the trained model."""
+    evaluator = Evaluation(output_dir)
+    
+    print("HERE")
+    z_imgs = encoder.predict(x_train)
+    recon_imgs = decoder.predict(z_imgs)
+    #print(recon_imgs)
+ 
+    evaluator.reconstruction_images(x_train, recon_imgs[:,:,:,0], epoch=0)
+    
+    if full_evaluation: 
+        # Visualize latent space
+        evaluator.visualize_latent_space(z_imgs, y_train, epoch=0)
+
+        # Covariance matrix
+        cov_matrix = cov_loss_terms(z_imgs)[0]
+        evaluator.plot_cov_matrix(cov_matrix, epoch=0)
+
+        # KL divergence
+        print("KL Divergences in each dimension: ", evaluator.calculate_kl_divergence(z_imgs))
 
 # Main function
 def main():
