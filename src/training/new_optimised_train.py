@@ -226,10 +226,12 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
         'discriminator': discriminator,
         'reconstruction_losses': reconstruction_losses_total,
         'adversarial_losses': adversarial_losses_total,
+        'lambda_recon': lambda_recon,
+        'lambda_adv': lambda_adv
     }
 
 
-def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=20):
+def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, lambda_recon=1, lambda_adv=1, epochs=20):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -248,8 +250,6 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=2
         discriminator = Discriminator(latent_dim=config['latent_dim']).model
 
     # Initial losses
-    lambda_recon = 1
-    lambda_adv = 1
     lambda_cov = 1
 
     # Placeholder for storing losses
