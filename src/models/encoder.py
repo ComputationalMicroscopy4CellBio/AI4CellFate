@@ -26,9 +26,9 @@ class Encoder:
         z = GaussianNoise(stddev=self.gaussian_noise_std)(z)
         z = BatchNormalization()(z)
 
-        z_split = Lambda(lambda x: tf.split(x, num_or_size_splits=self.latent_dim // 2, axis=1))(z) #### FORCING THE 2 FIRST LATENT FEATURES TO BE CORRELATED WITH CLASSIFICATION
-        clfscore = Dense(self.num_classes, activation='softmax')(z)
-        encoder_model = Model(enc_input, [z, clfscore], name='encoder')
+        #z_split = Lambda(lambda x: tf.split(x, num_or_size_splits=self.latent_dim // 2, axis=1))(z) #### FORCING THE 2 FIRST LATENT FEATURES TO BE CORRELATED WITH CLASSIFICATION
+        #clfscore = Dense(self.num_classes, activation='softmax')(z)
+        encoder_model = Model(enc_input, z, name='encoder') #[z, clfscore]
 
         return encoder_model
 
