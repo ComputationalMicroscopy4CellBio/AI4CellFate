@@ -583,3 +583,145 @@ def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train,
         'cov_loss': cov_losses,
         'clf_loss': clf_losses
     }
+
+def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adversarial_losses=None, cov_losses=None, clf_losses=None, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True, save_every_epoch=False):
+    config = convert_namespace_to_dict(config)
+    set_seed(config['seed'])
+    rng = np.random.default_rng(config['seed'])
+
+    print(f"Training with batch size: {config['batch_size']}, epochs: {config['epochs']}, "
+          f"learning rate: {config['learning_rate']}, seed: {config['seed']}, latent dim: {config['latent_dim']}")
+
+    # Optimizers
+    ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
+    disc_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
+
+    # Create model instance
+    classifier = mlp_classifier(latent_dim=config['latent_dim'])
+
+    # Placeholder for storing losses
+    reconstruction_losses_total = []
+    adversarial_losses_total = []
+    cov_losses_total = []
+    clf_losses_total = []
+
+    reconstruction_losses_total.extend(reconstruction_losses)
+    adversarial_losses_total.extend(adversarial_losses)
+    cov_losses_total.extend(cov_losses)
+    clf_losses_total.extend(clf_losses)
+
+    lambda_recon = 1/reconstruction_losses[-1]
+    lambda_adv = 1/adversarial_losses[-1]
+    lambda_cov = 1/cov_losses[-1]
+    lambda_clf = 1/clf_losses[-1]
+    total = lambda_recon + lambda_adv + lambda_cov + lambda_clf
+    lambda_recon = lambda_recon / total
+    lambda_adv = lambda_adv / total
+    lambda_cov = lambda_cov / total
+    lambda_clf = lambda_clf / total
+
+    print(f"Initial lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda clf: {lambda_clf:.4f}")
+
+    real_y = 0.9 * np.ones((config['batch_size'], 1))
+    fake_y = 0.1 * np.ones((config['batch_size'], 1))
+
+    #initial_weights = encoder.get_weights()
+
+    for epoch in range(config['epochs']): 
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses, epoch_clf_losses = [], [], [], []
+
+        # final_weights = encoder.get_weights()
+        # assert all(np.array_equal(i, f) for i, f in zip(initial_weights, final_weights)), "Weights changed!"
+    
+        for n_batch in range(len(x_train) // config['batch_size']):
+            idx = rng.integers(0, x_train.shape[0], config['batch_size'])
+            image_batch = x_train[idx]
+
+            with tf.GradientTape() as tape:
+                # Forward pass through encoder and decoder
+                z_imgs = encoder(image_batch, training=True)
+                recon_imgs = decoder(z_imgs, training=True)
+
+                # Reconstruction loss
+                recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs) 
+
+                # Adversarial loss for discriminator
+                z_discriminator_out = discriminator(z_imgs, training=True)
+                adv_loss = bce_loss(real_y, z_discriminator_out)
+
+                # Covariance loss
+                cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
+                cov_loss = off_diag_loss#0.5 * diag_cov_mean + 0.5 * z_std_loss
+
+                # Classification loss
+                mlp_predictions = classifier(z_imgs, training=True)
+                clf_loss = bce_loss(np.eye(2)[y_train[idx]], mlp_predictions)
+
+                # Total autoencoder loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_clf * clf_loss
+
+            # Backpropagation for autoencoder
+            trainable_variables = encoder.trainable_variables + decoder.trainable_variables + classifier.trainable_variables
+            gradients = tape.gradient(ae_loss, trainable_variables)
+            ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
+
+            # Train the discriminator
+            rand_vecs = tf.random.stateless_normal(
+                shape=(config['batch_size'], config['latent_dim']),
+                seed=(config['seed'], epoch + n_batch)
+            )
+            with tf.GradientTape() as tape:
+                z_discriminator_out = discriminator(z_imgs, training=True)
+                rand_discriminator_out = discriminator(rand_vecs, training=True)
+
+                discriminator_loss = 0.5 * bce_loss(real_y, rand_discriminator_out) + \
+                                     0.5 * bce_loss(fake_y, z_discriminator_out)
+
+            # Update discriminator weights
+            disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
+            disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
+
+            # Track individual losses for adjustment
+            epoch_reconstruction_losses.append(lambda_recon * recon_loss)
+            epoch_adversarial_losses.append(lambda_adv * adv_loss)
+            epoch_cov_losses.append(lambda_cov * cov_loss)
+            epoch_clf_losses.append(lambda_clf * clf_loss)
+        
+        # Store average losses for the epoch
+        avg_recon_loss = np.mean(epoch_reconstruction_losses)
+        avg_adv_loss = np.mean(epoch_adversarial_losses)
+        avg_cov_loss = np.mean(epoch_cov_losses)
+        avg_clf_loss = np.mean(epoch_clf_losses)
+
+        reconstruction_losses_total.append(avg_recon_loss)
+        adversarial_losses_total.append(avg_adv_loss)
+        cov_losses_total.append(avg_cov_loss)
+        clf_losses_total.append(avg_clf_loss)
+
+        # Print progress
+        print(f"Epoch {epoch + 1}/{config["epochs"]}: "
+              f"Reconstruction loss: {avg_recon_loss:.4f}, "
+              f"Adversarial loss: {avg_adv_loss:.4f}, "
+              f"Covariance loss: {avg_cov_loss:.4f}, "
+                f"Classification loss: {avg_clf_loss:.4f}, "
+              "lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda clf: {lambda_clf:.4f}")
+
+    # Save final loss plot
+    if save_loss_plot:
+        print("Saving loss plot...")
+        save_loss_plots_clf(reconstruction_losses_total, adversarial_losses_total, cov_losses_total, clf_losses_total, output_dir="./results/loss_plots/autoencoder_clf")
+    
+    # Save model weights
+    if save_model_weights:
+        print("Saving model weights...")
+        save_model_weights_to_disk(encoder, decoder, discriminator, output_dir="./results/models/autoencoder_clf")
+
+    return {
+        'encoder': encoder,
+        'decoder': decoder,
+        'discriminator': discriminator,
+        'reconstruction_losses': reconstruction_losses_total,
+        'adversarial_losses': adversarial_losses_total,
+        'cov_losses': cov_losses_total,
+        'clf_losses': clf_losses_total
+    }

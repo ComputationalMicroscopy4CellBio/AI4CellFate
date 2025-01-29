@@ -65,20 +65,33 @@ def main():
     # Evaluate the autoencoder
     evaluate_model(scaled_autoencoder_results['encoder'], scaled_autoencoder_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder", full_evaluation=False)
 
-    # Train the lambda optimisation autoencoder + cov
-    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv'])
-    encoder = lambda_ae_cov_results['encoder']
-    decoder = lambda_ae_cov_results['decoder']
-    discriminator = lambda_ae_cov_results['discriminator']
-    reconstruction_losses = lambda_ae_cov_results['recon_loss']
-    adversarial_losses = lambda_ae_cov_results['adv_loss']
-    cov_losses = lambda_ae_cov_results['cov_loss']
+    # # Train the lambda optimisation autoencoder + cov
+    # lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv'])
+    # encoder = lambda_ae_cov_results['encoder']
+    # decoder = lambda_ae_cov_results['decoder']
+    # discriminator = lambda_ae_cov_results['discriminator']
+    # reconstruction_losses = lambda_ae_cov_results['recon_loss']
+    # adversarial_losses = lambda_ae_cov_results['adv_loss']
+    # cov_losses = lambda_ae_cov_results['cov_loss']
 
-    # Train the autoencoder starting from the optimal lambdas
-    scaled_ae_cov_results = train_cov_scaled(config, x_train, reconstruction_losses, adversarial_losses, cov_losses, encoder, decoder, discriminator)
+    # # Train the autoencoder starting from the optimal lambdas
+    # scaled_ae_cov_results = train_cov_scaled(config, x_train, reconstruction_losses, adversarial_losses, cov_losses, encoder, decoder, discriminator)
 
-    # Evaluate the autoencoder + cov
-    evaluate_model(scaled_ae_cov_results['encoder'], scaled_ae_cov_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder_cov", full_evaluation=False)
- 
+    # # Evaluate the autoencoder + cov
+    # evaluate_model(scaled_ae_cov_results['encoder'], scaled_ae_cov_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder_cov", full_evaluation=False)
+    
+    # Train the lambda optimisation autoencoder + cov + classifier
+    lambda_ae_clf_results = train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv'])
+    encoder = lambda_ae_clf_results['encoder']
+    decoder = lambda_ae_clf_results['decoder']
+    discriminator = lambda_ae_clf_results['discriminator']
+    reconstruction_losses = lambda_ae_clf_results['recon_loss']
+    adversarial_losses = lambda_ae_clf_results['adv_loss']
+    cov_losses = lambda_ae_clf_results['cov_loss']
+    clf_losses = lambda_ae_clf_results['clf_loss']
+
+    # Train the autoencoder + cov + clf starting from the optimal lambdas
+
+
 if __name__ == '__main__':
     main()
