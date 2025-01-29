@@ -24,6 +24,14 @@ def save_model_weights_to_disk(encoder, decoder, discriminator, output_dir):
     decoder.save_weights(os.path.join(output_dir, "decoder.weights.h5"))
     discriminator.save_weights(os.path.join(output_dir, "discriminator.weights.h5"))
 
+def save_full_model_weights_to_disk(encoder, decoder, discriminator, classifier, output_dir):
+    """Save model weights to disk."""
+    os.makedirs(output_dir, exist_ok=True)
+    encoder.save_weights(os.path.join(output_dir, "encoder.weights.h5"))
+    decoder.save_weights(os.path.join(output_dir, "decoder.weights.h5"))
+    discriminator.save_weights(os.path.join(output_dir, "discriminator.weights.h5"))
+    classifier.save_weights(os.path.join(output_dir, "classifier.weights.h5"))
+
 def save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, output_dir):
     # Create loss plot and save it under the 'results' directory
     plt.figure(figsize=(10, 5))

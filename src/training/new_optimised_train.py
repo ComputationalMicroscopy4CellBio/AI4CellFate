@@ -571,8 +571,7 @@ def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train,
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
               f"Covariance loss: {avg_cov_loss:.4f}, "
-                f"Classification loss: {avg_clf_loss:.4f}, "
-              "lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda clf: {lambda_clf:.4f}")
+                f"Classification loss: {avg_clf_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda clf: {lambda_clf:.4f}")
 
     return {
         'encoder': encoder,
@@ -699,12 +698,11 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
         clf_losses_total.append(avg_clf_loss)
 
         # Print progress
-        print(f"Epoch {epoch + 1}/{config["epochs"]}: "
+        print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
               f"Covariance loss: {avg_cov_loss:.4f}, "
-                f"Classification loss: {avg_clf_loss:.4f}, "
-              "lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda clf: {lambda_clf:.4f}")
+                f"Classification loss: {avg_clf_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda clf: {lambda_clf:.4f}")
 
     # Save final loss plot
     if save_loss_plot:
@@ -714,12 +712,13 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
     # Save model weights
     if save_model_weights:
         print("Saving model weights...")
-        save_model_weights_to_disk(encoder, decoder, discriminator, output_dir="./results/models/autoencoder_clf")
+        save_full_model_weights_to_disk(encoder, decoder, discriminator, classifier, output_dir="./results/models/autoencoder_clf")
 
     return {
         'encoder': encoder,
         'decoder': decoder,
         'discriminator': discriminator,
+        'classifier': classifier,
         'reconstruction_losses': reconstruction_losses_total,
         'adversarial_losses': adversarial_losses_total,
         'cov_losses': cov_losses_total,

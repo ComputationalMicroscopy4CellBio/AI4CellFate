@@ -11,7 +11,7 @@ def load_data():
     y_test = np.load('./data/test_labels.npy')
     return x_train, x_test, y_train, y_test
 
-def evaluate_model(encoder, decoder, x_train, y_train, output_dir, full_evaluation=False):
+def evaluate_model(encoder, decoder, x_train, y_train, output_dir, classifier=None, x_test=None, y_test=None, full_evaluation=False):
     """Evaluate the trained model."""
     evaluator = Evaluation(output_dir)
     
@@ -27,9 +27,15 @@ def evaluate_model(encoder, decoder, x_train, y_train, output_dir, full_evaluati
     # Covariance matrix
     cov_matrix = cov_loss_terms(z_imgs)[0]
     evaluator.plot_cov_matrix(cov_matrix, epoch=0)
-
+    
     # KL divergence
     print("KL Divergences in each dimension: ", evaluator.calculate_kl_divergence(z_imgs))
+
+    if full_evaluation:
+        # Predict labels and plot confusion matrix
+        test_latent_space = encoder.predict(x_test)
+        y_pred = classifier.predict(test_latent_space) 
+        evaluator.plot_confusion_matrix(y_test, y_pred, num_classes=2)
 
 # Main function
 def main():
@@ -41,7 +47,7 @@ def main():
     # Config for training
     config = {
         'batch_size': 30,
-        'epochs': 30,
+        'epochs': 10,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 10,
@@ -91,6 +97,16 @@ def main():
     clf_losses = lambda_ae_clf_results['clf_loss']
 
     # Train the autoencoder + cov + clf starting from the optimal lambdas
+    scaled_ae_clf_results = train_clf_scaled(config, x_train, y_train, reconstruction_losses, adversarial_losses, cov_losses, clf_losses, encoder, decoder, discriminator)
+
+    final_encoder = scaled_ae_clf_results['encoder']
+    final_decoder = scaled_ae_clf_results['decoder']
+    final_discriminator = scaled_ae_clf_results['discriminator']
+    final_classifier = scaled_ae_clf_results['classifier']
+                                                       
+    # Evaluate the autoencoder + cov + clf
+    evaluate_model(final_encoder, final_decoder, x_train, y_train, output_dir="./results/optimisation/autoencoder_clf", classifier=final_classifier, x_test=x_test, y_test=y_test, full_evaluation=True)
+    
 
 
 if __name__ == '__main__':
