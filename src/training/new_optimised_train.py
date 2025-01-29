@@ -335,7 +335,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=2
         'discriminator': discriminator,
         'recon_loss': reconstruction_losses,
         'adv_loss': adversarial_losses,
-        'cov_losses': cov_losses
+        'cov_loss': cov_losses
     }
 
 def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_losses=None, cov_losses=None, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True, save_every_epoch=False):
