@@ -35,7 +35,7 @@ def set_seed(seed):
     import random
     random.seed(seed)
 
-def train_model(config, x_train, save_loss_plot=True, save_model_weights=True):
+def train_autoencoder(config, x_train, save_loss_plot=True, save_model_weights=True):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
@@ -253,16 +253,9 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
         if save_every_epoch and (epoch + 1) % 10 == 0:
             epoch_dir = os.path.join(evaluation.output_dir, f"epoch_{epoch + 1}")
             os.makedirs(epoch_dir, exist_ok=True)
-
             all_z_imgs = encoder.predict(x_train)[0]
-
-            # Save reconstruction images
             evaluation.reconstruction_images(image_batch, recon_imgs, epoch + 1, n=10)
-            
-            # Save covariance matrix
             evaluation.plot_cov_matrix(cov_loss_terms(all_z_imgs)[0], epoch + 1)
-            
-            # Save latent space visualization
             evaluation.visualize_latent_space(all_z_imgs, y_train, epoch + 1)
 
     # Save final loss plot
