@@ -7,6 +7,7 @@ from ..config import CONFIG
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
 from ..evaluation.evaluate import Evaluation
+import tempfile
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Training Configuration')
@@ -35,7 +36,18 @@ def set_seed(seed):
     import random
     random.seed(seed)
 
-def train_lambdas_autoencoder(config, x_train, epochs=5):
+def clone_model_exact(model):
+    # Save the original model to a temporary file
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        model_path = f"{tmp_dir}/model_clone/encoder.weights.h5"
+        model.save_weights(model_path)
+        #print("HEREEEEE")
+        # Load the saved model as a new copy
+        #cloned_model = tf.keras.models.load_model(model_path, compile=False)
+        cloned_model = model.load_weights(model_path)
+    return cloned_model
+
+def train_lambdas_autoencoder(config, x_train, encoder, decoder, discriminator, epochs=5):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
@@ -47,9 +59,10 @@ def train_lambdas_autoencoder(config, x_train, epochs=5):
     img_shape = (x_train.shape[1], x_train.shape[2], 1) # Assuming grayscale images
 
     # Create model instances
-    encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
-    decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
-    discriminator = Discriminator(latent_dim=config['latent_dim']).model
+    if encoder is None:
+        encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
+        decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
+        discriminator = Discriminator(latent_dim=config['latent_dim']).model
 
     # Optimizers
     ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
@@ -72,11 +85,13 @@ def train_lambdas_autoencoder(config, x_train, epochs=5):
 
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = rng.integers(0, x_train.shape[0], config['batch_size'])
-            image_batch = x_train[idx]
+            idx = tf.convert_to_tensor(idx, dtype=tf.int32)
+            #image_batch = x_train[idx]
+            image_batch = tf.gather(x_train, idx)
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
-                z_imgs, z_score = encoder(image_batch, training=True)
+                z_imgs = encoder(image_batch, training=True)
                 recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
 
                 # Reconstruction loss
@@ -133,7 +148,7 @@ def train_lambdas_autoencoder(config, x_train, epochs=5):
         'adv_loss': adversarial_losses,
     }
 
-def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=20):
+def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=5):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -168,7 +183,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=2
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
-                z_imgs, z_score = encoder(image_batch, training=True)
+                z_imgs = encoder(image_batch, training=True)
                 recon_imgs = decoder(z_imgs, training=True)
 
                 # Reconstruction loss
@@ -180,7 +195,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=2
 
                 # Covariance loss
                 cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
-                cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss
+                cov_loss = off_diag_loss #0.5 * diag_cov_mean + 0.5 * z_std_loss
 
                 # Total autoencoder loss
                 ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss
@@ -233,7 +248,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, epochs=2
         'cov_losses': cov_losses
     } 
 
-def train_autoencoder_scaled(config, x_train, save_loss_plot=True, save_model_weights=True):
+def train_autoencoder_scaled(config, x_train, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
@@ -254,7 +269,7 @@ def train_autoencoder_scaled(config, x_train, save_loss_plot=True, save_model_we
     total_loss = []
 
     # Adjust the lambdas based on previous 5 epoch training
-    losses = train_lambdas_autoencoder(config, x_train, epochs=5)
+    losses = train_lambdas_autoencoder(config, x_train, encoder, decoder, discriminator, epochs=5)
     lambda_recon = 1/losses['recon_loss'][-1]
     lambda_adv = 1/losses['adv_loss'][-1]
     total = lambda_recon + lambda_adv
@@ -263,8 +278,9 @@ def train_autoencoder_scaled(config, x_train, save_loss_plot=True, save_model_we
     print(f"Initial lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
 
     # Create model instances
-    encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
-    decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
+    if encoder is None:
+        encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
+        decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
     discriminator = Discriminator(latent_dim=config['latent_dim']).model
 
     real_y = 0.9 * np.ones((config['batch_size'], 1))
@@ -279,7 +295,7 @@ def train_autoencoder_scaled(config, x_train, save_loss_plot=True, save_model_we
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
-                z_imgs, z_score = encoder(image_batch, training=True)
+                z_imgs = encoder(image_batch, training=True)
                 recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
 
                 # Reconstruction loss
@@ -323,14 +339,6 @@ def train_autoencoder_scaled(config, x_train, save_loss_plot=True, save_model_we
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
 
-        # if epoch == 4:
-            
-        #     lambda_recon = (1/avg_recon_loss)
-        #     lambda_adv = (1/avg_adv_loss)
-        #     total = lambda_recon + lambda_adv
-        #     lambda_recon = lambda_recon / total
-        #     lambda_adv = lambda_adv / total
-
         reconstruction_losses.append(avg_recon_loss)
         adversarial_losses.append(avg_adv_loss)
 
@@ -345,20 +353,7 @@ def train_autoencoder_scaled(config, x_train, save_loss_plot=True, save_model_we
     
     if save_model_weights:
         print("Saving model weights...")
-        output_dir = "./results/models"
-        os.makedirs(output_dir, exist_ok=True)
-
-        encoder_weights_path = os.path.join(output_dir, "encoder.weights.h5")
-        decoder_weights_path = os.path.join(output_dir, "decoder.weights.h5")
-        discriminator_weights_path = os.path.join(output_dir, "discriminator.weights.h5")
-
-        encoder.save_weights(encoder_weights_path)
-        decoder.save_weights(decoder_weights_path)
-        discriminator.save_weights(discriminator_weights_path)
-
-        print(f"Encoder weights saved to {encoder_weights_path}")
-        print(f"Decoder weights saved to {decoder_weights_path}")
-        print(f"Discriminator weights saved to {discriminator_weights_path}")
+        save_model_weights_to_disk(encoder, decoder, discriminator)
 
     return {
         'encoder': encoder,
@@ -382,29 +377,29 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
     ae_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
     disc_optimizer = tf.keras.optimizers.Adam(learning_rate=config['learning_rate'], beta_1=0.0, beta_2=0.9)
 
-    # encoder_for_lambda = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
-    # decoder_for_lambda = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
-    # discriminator_for_lambda = Discriminator(latent_dim=config['latent_dim']).model
+    # encoder_for_lambda = tf.keras.models.clone_model(encoder)
+    # decoder_for_lambda = tf.keras.models.clone_model(decoder)
+    # discriminator_for_lambda = tf.keras.models.clone_model(discriminator)
 
-    encoder_for_lambda = tf.keras.models.clone_model(encoder)
-    decoder_for_lambda = tf.keras.models.clone_model(decoder)
-    discriminator_for_lambda = tf.keras.models.clone_model(discriminator)
+    # encoder_for_lambda = clone_model_exact(encoder)
+    # decoder_for_lambda = clone_model_exact(decoder)
+    # discriminator_for_lambda = clone_model_exact(discriminator)
 
-    # Compile the cloned models if needed
-    encoder_for_lambda.compile(optimizer=ae_optimizer)
-    decoder_for_lambda.compile(optimizer=ae_optimizer)
-    discriminator_for_lambda.compile(optimizer=disc_optimizer)
-
-    losses = train_lambdas_cov(config, encoder_for_lambda, decoder_for_lambda, discriminator_for_lambda, x_train, epochs=20)
-
-    print("DID THE ENCODER CHANGE?",encoder_for_lambda==encoder)
-    lambda_recon = 1/losses['recon_loss'][-1]
-    lambda_adv = 1/losses['adv_loss'][-1]
-    lambda_cov = 1/losses['cov_losses'][-1]
-    total = lambda_recon + lambda_adv + lambda_cov
-    lambda_recon = lambda_recon / total
-    lambda_adv = lambda_adv / total
-    lambda_cov = lambda_cov / total
+    # Compile the cloned models
+    # encoder_for_lambda.compile(optimizer=ae_optimizer)
+    # decoder_for_lambda.compile(optimizer=ae_optimizer)
+    # discriminator_for_lambda.compile(optimizer=disc_optimizer)
+    lambda_recon = 1
+    lambda_adv = 1
+    lambda_cov = 1
+    #losses = train_lambdas_cov(config, encoder_for_lambda, decoder_for_lambda, discriminator_for_lambda, x_train, epochs=5)
+    # lambda_recon = 1/losses['recon_loss'][-1]
+    # lambda_adv = 1/losses['adv_loss'][-1]
+    # lambda_cov = 1/losses['cov_losses'][-1]
+    # total = lambda_recon + lambda_adv + lambda_cov
+    # lambda_recon = lambda_recon / total
+    # lambda_adv = lambda_adv / total
+    # lambda_cov = lambda_cov / total
     print(f"Initial lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}")
 
     # Placeholder for storing losses
@@ -417,37 +412,41 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
     # Initialize the evaluation class
-    evaluation = Evaluation(output_dir="./results/evaluation")
-
+    #evaluation = Evaluation(output_dir="./results/evaluation")
+    initial_weights = encoder.get_weights()
     for epoch in range(config['epochs']): 
+    
+        final_weights = encoder.get_weights()
+        assert all(np.array_equal(i, f) for i, f in zip(initial_weights, final_weights)), "Weights changed!"
         epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses = [], [], []
-
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = rng.integers(0, x_train.shape[0], config['batch_size'])
             image_batch = x_train[idx]
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
-                z_imgs, z_score = encoder(image_batch, training=True)
+                # final_weights = encoder.get_weights()
+                # assert all(np.array_equal(i, f) for i, f in zip(initial_weights, final_weights)), "Weights changed!"
+                z_imgs = encoder(image_batch, training=True)
+                # Z img is different in each run
                 recon_imgs = decoder(z_imgs, training=True)
 
                 # Reconstruction loss
-                recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
-
+                recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs) 
                 # Adversarial loss for discriminator
                 z_discriminator_out = discriminator(z_imgs, training=True)
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
                 # Covariance loss
                 cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
-                cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss
+                cov_loss = off_diag_loss#0.5 * diag_cov_mean + 0.5 * z_std_loss
 
                 # Total autoencoder loss
                 ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder
-            trainable_variables = new_encoder.trainable_variables + decoder.trainable_variables
+            trainable_variables = encoder.trainable_variables + decoder.trainable_variables
             gradients = tape.gradient(ae_loss, trainable_variables)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
@@ -491,7 +490,7 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
         if save_every_epoch and (epoch + 1) % 10 == 0:
             epoch_dir = os.path.join(evaluation.output_dir, f"epoch_{epoch + 1}")
             os.makedirs(epoch_dir, exist_ok=True)
-            all_z_imgs = encoder.predict(x_train)[0]
+            all_z_imgs = encoder.predict(x_train)
             evaluation.reconstruction_images(image_batch, recon_imgs, epoch + 1, n=10)
             evaluation.plot_cov_matrix(cov_loss_terms(all_z_imgs)[0], epoch + 1)
             evaluation.visualize_latent_space(all_z_imgs, y_train, epoch + 1)
@@ -504,20 +503,7 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
     # Save model weights
     if save_model_weights:
         print("Saving model weights...")
-        output_dir = "./results/models"
-        os.makedirs(output_dir, exist_ok=True)
-
-        encoder_weights_path = os.path.join(output_dir, "encoder.weights.h5")
-        decoder_weights_path = os.path.join(output_dir, "decoder.weights.h5")
-        discriminator_weights_path = os.path.join(output_dir, "discriminator.weights.h5")
-
-        encoder.save_weights(encoder_weights_path)
-        decoder.save_weights(decoder_weights_path)
-        discriminator.save_weights(discriminator_weights_path)
-
-        print(f"Encoder weights saved to {encoder_weights_path}")
-        print(f"Decoder weights saved to {decoder_weights_path}")
-        print(f"Discriminator weights saved to {discriminator_weights_path}")
+        save_model_weights_to_disk(encoder, decoder, discriminator, model_name="cov")
 
     return {
         'encoder': encoder,
@@ -526,6 +512,17 @@ def train_cov_scaled(config, encoder, decoder, discriminator, x_train, y_train, 
         'reconstruction_losses': reconstruction_losses,
         'adversarial_losses': adversarial_losses,
     }
+
+def save_model_weights_to_disk(encoder, decoder, discriminator, model_name="autoencoder"):
+    """Save model weights to disk."""
+    if model_name == "autoencoder":
+        output_dir = "./results/models/autoencoder"
+    else:
+        output_dir = "./results/models"
+    os.makedirs(output_dir, exist_ok=True)
+    encoder.save_weights(os.path.join(output_dir, "encoder.weights.h5"))
+    decoder.save_weights(os.path.join(output_dir, "decoder.weights.h5"))
+    discriminator.save_weights(os.path.join(output_dir, "discriminator.weights.h5"))
 
 def save_loss_plots(reconstruction_losses, adversarial_losses, epochs):
     # Create loss plot and save it under the 'results' directory

@@ -13,8 +13,8 @@ class Discriminator:
         model.add(BatchNormalization(scale=False))
         model.add(LeakyReLU(alpha=0.2))
         
-        model.add(Dense(512))
-        model.add(LeakyReLU(alpha=0.2))
+        # model.add(Dense(512))
+        # model.add(LeakyReLU(alpha=0.2))
         
         model.add(Dense(512))
         model.add(Dropout(0.5))

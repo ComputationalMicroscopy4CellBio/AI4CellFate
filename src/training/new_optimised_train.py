@@ -33,6 +33,7 @@ def train_lambdas_autoencoder(config, x_train, encoder=None, decoder=None, discr
     # Placeholder for storing losses
     reconstruction_losses = []
     adversarial_losses = []
+    kl_losses = []
 
     # Initial losses
     lambda_recon = 1
@@ -42,7 +43,7 @@ def train_lambdas_autoencoder(config, x_train, encoder=None, decoder=None, discr
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
     for epoch in range(epochs):
-        epoch_reconstruction_losses, epoch_adversarial_losses = [], []
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_kl_losses = [], [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = rng.integers(0, x_train.shape[0], config['batch_size'])
@@ -52,67 +53,75 @@ def train_lambdas_autoencoder(config, x_train, encoder=None, decoder=None, discr
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
-                z_imgs = encoder(image_batch, training=True)
+                mu, log_var, z_imgs = encoder(image_batch, training=True)
                 recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
 
                 # Reconstruction loss
                 recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
 
+                # KL loss
+                kl_loss = -0.5 * tf.reduce_mean(1 + log_var - tf.square(mu) - tf.exp(log_var))
+
                 # Adversarial loss for discriminator
-                z_discriminator_out = discriminator(z_imgs, training=True)
-                adv_loss = bce_loss(real_y, z_discriminator_out)
+                # z_discriminator_out = discriminator(z_imgs, training=True)
+                # adv_loss = bce_loss(real_y, z_discriminator_out)
 
                 # Total autoencoder loss
-                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * 0 + lambda_recon * kl_loss
 
             # Backpropagation for autoencoder (encoder + decoder)
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables
             gradients = tape.gradient(ae_loss, trainable_variables)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
-            # Train the discriminator 
-            rand_vecs = tf.random.stateless_normal(
-                shape=(config['batch_size'], config['latent_dim']),
-                seed=(config['seed'], epoch + n_batch)
-            )
+            # # Train the discriminator 
+            # rand_vecs = tf.random.stateless_normal(
+            #     shape=(config['batch_size'], config['latent_dim']),
+            #     seed=(config['seed'], epoch + n_batch)
+            # )
 
-            with tf.GradientTape() as tape:
-                z_discriminator_out = discriminator(z_imgs, training=True)
-                rand_discriminator_out = discriminator(rand_vecs, training=True)
+            # with tf.GradientTape() as tape:
+            #     z_discriminator_out = discriminator(z_imgs, training=True)
+            #     rand_discriminator_out = discriminator(rand_vecs, training=True)
 
-                discriminator_loss = 0.5 * bce_loss(real_y, rand_discriminator_out) + \
-                                     0.5 * bce_loss(fake_y, z_discriminator_out)
+            #     discriminator_loss = 0.5 * bce_loss(real_y, rand_discriminator_out) + \
+            #                          0.5 * bce_loss(fake_y, z_discriminator_out)
 
-            # Update discriminator weights
-            disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
-            disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
+            # # Update discriminator weights
+            # disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
+            # disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
 
             # Track individual losses for adjustment
             epoch_reconstruction_losses.append(lambda_recon * recon_loss)
-            epoch_adversarial_losses.append(lambda_adv * adv_loss)
+            #epoch_adversarial_losses.append(lambda_adv * adv_loss)
+            epoch_kl_losses.append(lambda_recon * kl_loss)
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
-        avg_adv_loss = np.mean(epoch_adversarial_losses)
+        #avg_adv_loss = np.mean(epoch_adversarial_losses)
+        avg_kl_loss = np.mean(epoch_kl_losses)
 
         reconstruction_losses.append(avg_recon_loss)
-        adversarial_losses.append(avg_adv_loss)
+        #adversarial_losses.append(avg_adv_loss)
+        kl_losses.append(avg_kl_loss)
 
         # Print and save results at the end of each epoch
         print(f"Epoch {epoch + 1}/{epochs}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
-              f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
+             # f"Adversarial loss: {avg_adv_loss:.4f}, "
+              f"KL loss: {avg_kl_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
 
     return {
         'encoder': encoder,
         'decoder': decoder,
         'discriminator': discriminator,
         'recon_loss': reconstruction_losses,
-        'adv_loss': adversarial_losses,
+        'adv_loss': 0,
+        'kl_loss': kl_losses
     }
 
 
-def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, adversarial_losses=None, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True):
+def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, adversarial_losses=None, kl_losses=None, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
@@ -130,13 +139,15 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
     # Placeholder for storing losses
     reconstruction_losses_total = []
     adversarial_losses_total = []
+    kl_losses_total = []
     total_loss = []
 
     reconstruction_losses_total.extend(reconstruction_losses)
-    adversarial_losses_total.extend(adversarial_losses)
+    #adversarial_losses_total.extend(adversarial_losses)
+    kl_losses_total.extend(kl_losses)
 
     lambda_recon = 1/reconstruction_losses[-1]
-    lambda_adv = 1/adversarial_losses[-1]
+    lambda_adv = 0
     total = lambda_recon + lambda_adv
     lambda_recon = lambda_recon / total
     lambda_adv = lambda_adv / total
@@ -152,7 +163,7 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
     for epoch in range(config['epochs']):
-        epoch_reconstruction_losses, epoch_adversarial_losses = [], []
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_kl_losses = [], [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = rng.integers(0, x_train.shape[0], config['batch_size'])
@@ -160,18 +171,21 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
-                z_imgs = encoder(image_batch, training=True)
+                mu, log_var, z_imgs = encoder(image_batch, training=True)
                 recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
 
                 # Reconstruction loss
                 recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
 
                 # Adversarial loss for discriminator
-                z_discriminator_out = discriminator(z_imgs, training=True)
-                adv_loss = bce_loss(real_y, z_discriminator_out)
+                # z_discriminator_out = discriminator(z_imgs, training=True)
+                # adv_loss = bce_loss(real_y, z_discriminator_out)
+
+                # KL loss
+                kl_loss = -0.5 * tf.reduce_mean(1 + log_var - tf.square(mu) - tf.exp(log_var))
 
                 # Total autoencoder loss
-                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * 0 + lambda_recon * kl_loss
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder (encoder + decoder)
@@ -179,38 +193,42 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
             gradients = tape.gradient(ae_loss, trainable_variables)
             ae_optimizer.apply_gradients(zip(gradients, trainable_variables))
 
-            # Train the discriminator 
-            rand_vecs = tf.random.stateless_normal(
-                shape=(config['batch_size'], config['latent_dim']),
-                seed=(config['seed'], epoch + n_batch)
-            )
+            # # Train the discriminator 
+            # rand_vecs = tf.random.stateless_normal(
+            #     shape=(config['batch_size'], config['latent_dim']),
+            #     seed=(config['seed'], epoch + n_batch)
+            # )
 
-            with tf.GradientTape() as tape:
-                z_discriminator_out = discriminator(z_imgs, training=True)
-                rand_discriminator_out = discriminator(rand_vecs, training=True)
+            # with tf.GradientTape() as tape:
+            #     z_discriminator_out = discriminator(z_imgs, training=True)
+            #     rand_discriminator_out = discriminator(rand_vecs, training=True)
 
-                discriminator_loss = 0.5 * bce_loss(real_y, rand_discriminator_out) + \
-                                     0.5 * bce_loss(fake_y, z_discriminator_out)
+            #     discriminator_loss = 0.5 * bce_loss(real_y, rand_discriminator_out) + \
+            #                          0.5 * bce_loss(fake_y, z_discriminator_out)
 
-            # Update discriminator weights
-            disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
-            disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
+            # # Update discriminator weights
+            # disc_gradients = tape.gradient(discriminator_loss, discriminator.trainable_variables)
+            # disc_optimizer.apply_gradients(zip(disc_gradients, discriminator.trainable_variables))
 
             # Track individual losses for adjustment
             epoch_reconstruction_losses.append(lambda_recon * recon_loss)
-            epoch_adversarial_losses.append(lambda_adv * adv_loss)
+            epoch_adversarial_losses.append(lambda_adv * 0)
+            epoch_kl_losses.append(lambda_recon * kl_loss)
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
-        avg_adv_loss = np.mean(epoch_adversarial_losses)
+       # avg_adv_loss = np.mean(epoch_adversarial_losses)
+        avg_kl_loss = np.mean(epoch_kl_losses)
 
         reconstruction_losses_total.append(avg_recon_loss)
-        adversarial_losses_total.append(avg_adv_loss)
+        adversarial_losses_total.append(0)
+        kl_losses_total.append(avg_kl_loss)
 
         # Print and save results at the end of each epoch
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
-              f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
+             # f"Adversarial loss: {avg_adv_loss:.4f}, "
+              f"KL loss: {avg_kl_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
 
     if save_loss_plot:
         print("Saving loss plot...")
@@ -464,7 +482,7 @@ def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_lo
     }
 
 
-def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=1, lambda_adv=1, epochs=20):
+def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=1, lambda_adv=1, epochs=30):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -624,14 +642,9 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
-    #initial_weights = encoder.get_weights()
-
     for epoch in range(config['epochs']): 
         epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses, epoch_clf_losses = [], [], [], []
 
-        # final_weights = encoder.get_weights()
-        # assert all(np.array_equal(i, f) for i, f in zip(initial_weights, final_weights)), "Weights changed!"
-    
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = rng.integers(0, x_train.shape[0], config['batch_size'])
             image_batch = x_train[idx]
