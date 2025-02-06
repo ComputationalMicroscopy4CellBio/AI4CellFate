@@ -9,6 +9,26 @@ def bce_loss(y_true, y_pred):
 def cce_loss(y_true, y_pred):
     return tf.keras.losses.CategoricalCrossentropy(from_logits=False)(y_true, y_pred)
 
+def mutual_information_loss(z, y_true, classifier):
+    # Predict class probabilities from latent space
+    y_pred = classifier(z, training=True)
+    
+    # Calculate log p(y|z)
+    log_p_y_given_z = tf.reduce_sum(y_true * tf.math.log(y_pred + 1e-8), axis=1)
+    
+    # Calculate q(y) - the empirical distribution
+    q_y = tf.reduce_mean(y_true, axis=0)
+    log_q_y = tf.math.log(q_y + 1e-8)
+    
+    # Extra to reshape
+    log_q_y = tf.reduce_sum(y_true * log_q_y, axis=1)
+
+    log_p_y_given_z = tf.cast(log_p_y_given_z, tf.float32)
+    log_q_y = tf.cast(log_q_y, tf.float32)
+    
+    # Calculate the mutual information loss
+    mi_loss = tf.reduce_mean(log_p_y_given_z - log_q_y)
+    return -(mi_loss - 1.0) # Negative since we want to maximize MI - added constant to be positive
 
 ##### COVARIANCE LOSS #####
 def get_off_diag_values(x):

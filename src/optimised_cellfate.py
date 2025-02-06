@@ -31,10 +31,10 @@ def evaluate_model(encoder, decoder, x_train, y_train, output_dir, classifier=No
     # KL divergence
     print("KL Divergences in each dimension: ", evaluator.calculate_kl_divergence(z_imgs))
 
-    if full_evaluation:
+    if full_evaluation: # try with only x_test (no x_val)
         # Predict labels and plot confusion matrix
         test_latent_space = encoder.predict(x_test)
-        y_pred = classifier.predict(test_latent_space) 
+        y_pred = classifier.predict(test_latent_space) # [:,:2]
         evaluator.plot_confusion_matrix(y_test, y_pred, num_classes=2)
 
 # Main function
@@ -95,6 +95,15 @@ def main():
     adversarial_losses = lambda_ae_clf_results['adv_loss']
     cov_losses = lambda_ae_clf_results['cov_loss']
     clf_losses = lambda_ae_clf_results['clf_loss']
+
+    config = {
+        'batch_size': 30,
+        'epochs': 30,
+        'learning_rate': 0.001,
+        'seed': 42,
+        'latent_dim': 10,
+        'GaussianNoise_std': 0.003,
+    }
 
     # Train the autoencoder + cov + clf starting from the optimal lambdas
     scaled_ae_clf_results = train_clf_scaled(config, x_train, y_train, reconstruction_losses, adversarial_losses, cov_losses, clf_losses, encoder, decoder, discriminator)

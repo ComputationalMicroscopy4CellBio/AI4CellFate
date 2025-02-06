@@ -488,6 +488,7 @@ def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train,
     # Initial losses
     lambda_cov = 1
     lambda_clf = 1
+    lambda_mi = 0.1
 
     # Placeholder for storing losses
     reconstruction_losses = []
@@ -499,7 +500,7 @@ def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train,
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
     for epoch in range(epochs): 
-        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses, epoch_clf_losses = [], [], [], []
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses, epoch_clf_losses, epoch_mi_losses = [], [], [], [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = rng.integers(0, x_train.shape[0], config['batch_size'])
@@ -517,6 +518,9 @@ def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train,
                 z_discriminator_out = discriminator(z_imgs, training=True)
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
+                # Mutual info loss
+                #mi_loss = mutual_information_loss(z_imgs, np.eye(2)[y_train[idx]], classifier)
+                mi_loss = 0
                 # Covariance loss
                 cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
                 cov_loss = off_diag_loss #0.5 * diag_cov_mean + 0.5 * z_std_loss
@@ -526,7 +530,7 @@ def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train,
                 clf_loss = bce_loss(np.eye(2)[y_train[idx]], mlp_predictions)
 
                 # Total autoencoder loss
-                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_clf * clf_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_clf * clf_loss + lambda_mi * mi_loss
 
             # Backpropagation for autoencoder
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables + classifier.trainable_variables
@@ -554,12 +558,14 @@ def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train,
             epoch_adversarial_losses.append(lambda_adv * adv_loss)
             epoch_cov_losses.append(lambda_cov * cov_loss)
             epoch_clf_losses.append(lambda_clf * clf_loss)
+            epoch_mi_losses.append(lambda_mi * mi_loss)
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
         avg_cov_loss = np.mean(epoch_cov_losses)
         avg_clf_loss = np.mean(epoch_clf_losses)
+        avg_mi_loss = np.mean(epoch_mi_losses)
 
         reconstruction_losses.append(avg_recon_loss)
         adversarial_losses.append(avg_adv_loss)
@@ -571,6 +577,7 @@ def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train,
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
               f"Covariance loss: {avg_cov_loss:.4f}, "
+              f"MI loss: {avg_mi_loss:.4f}, "
                 f"Classification loss: {avg_clf_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda clf: {lambda_clf:.4f}")
 
     return {
@@ -624,10 +631,12 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
+    lambda_mi = 0.1
+
     #initial_weights = encoder.get_weights()
 
     for epoch in range(config['epochs']): 
-        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses, epoch_clf_losses = [], [], [], []
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses, epoch_clf_losses, epoch_mi_loss = [], [], [], [], []
 
         # final_weights = encoder.get_weights()
         # assert all(np.array_equal(i, f) for i, f in zip(initial_weights, final_weights)), "Weights changed!"
@@ -644,6 +653,9 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
                 # Reconstruction loss
                 recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs) 
 
+                # Mutual info loss
+                #mi_loss = mutual_information_loss(z_imgs, np.eye(2)[y_train[idx]], classifier)
+                mi_loss = 0
                 # Adversarial loss for discriminator
                 z_discriminator_out = discriminator(z_imgs, training=True)
                 adv_loss = bce_loss(real_y, z_discriminator_out)
@@ -657,7 +669,7 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
                 clf_loss = bce_loss(np.eye(2)[y_train[idx]], mlp_predictions)
 
                 # Total autoencoder loss
-                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_clf * clf_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_clf * clf_loss + lambda_mi * mi_loss
 
             # Backpropagation for autoencoder
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables + classifier.trainable_variables
@@ -685,12 +697,14 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
             epoch_adversarial_losses.append(lambda_adv * adv_loss)
             epoch_cov_losses.append(lambda_cov * cov_loss)
             epoch_clf_losses.append(lambda_clf * clf_loss)
+            epoch_mi_loss.append(lambda_mi * mi_loss)
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
         avg_cov_loss = np.mean(epoch_cov_losses)
         avg_clf_loss = np.mean(epoch_clf_losses)
+        avg_mi_loss = np.mean(epoch_mi_loss)
 
         reconstruction_losses_total.append(avg_recon_loss)
         adversarial_losses_total.append(avg_adv_loss)
@@ -702,6 +716,7 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
               f"Covariance loss: {avg_cov_loss:.4f}, "
+              f"MI loss: {avg_mi_loss:.4f}, "
                 f"Classification loss: {avg_clf_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda clf: {lambda_clf:.4f}")
 
     # Save final loss plot
