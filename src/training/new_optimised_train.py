@@ -251,7 +251,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
 
     # Initial losses
     lambda_cov = 1
-    lambda_contra = 1
+    lambda_contra = 0.1
 
     # Placeholder for storing losses
     reconstruction_losses = []
@@ -335,7 +335,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
         print(f"Epoch {epoch + 1}/{epochs}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
-              f"Adversarial loss: {avg_contra_loss:.4f}, "
+              f"Contrastive loss: {avg_contra_loss:.4f}, "
               f"Covariance loss: {avg_cov_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}")
 
     return {
@@ -378,7 +378,8 @@ def train_cov_scaled(config, x_train, y_train, reconstruction_losses=None, adver
     lambda_recon = lambda_recon / total
     lambda_adv = lambda_adv / total
     lambda_cov = lambda_cov / total
-    lambda_contra = 1
+
+    lambda_contra = 0.1
 
     print(f"Initial lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}")
 
@@ -415,7 +416,7 @@ def train_cov_scaled(config, x_train, y_train, reconstruction_losses=None, adver
 
                 # Contrastive loss
                 contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
-
+            
                 # Total autoencoder loss
                 ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_contra * contra_loss
 
