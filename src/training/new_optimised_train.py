@@ -288,7 +288,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
 
                 # Contrastive loss
                 contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
-
+                #contra_loss = 0
                 # Total autoencoder loss
                 ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_contra * contra_loss
                 total_loss.append(ae_loss)
@@ -374,14 +374,14 @@ def train_cov_scaled(config, x_train, y_train, reconstruction_losses=None, adver
     lambda_recon = 1/reconstruction_losses[-1]
     lambda_adv = 1/adversarial_losses[-1]
     lambda_cov = 1/cov_losses[-1]
-    total = lambda_recon + lambda_adv + lambda_cov
+    lambda_contra = 1/contra_losses[-1]
+    total = lambda_recon + lambda_adv + lambda_cov + lambda_contra
     lambda_recon = lambda_recon / total
     lambda_adv = lambda_adv / total
     lambda_cov = lambda_cov / total
+    lambda_contra = lambda_contra / total
 
-    lambda_contra = 0.1
-
-    print(f"Initial lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}")
+    print(f"Initial lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda contra: {lambda_contra:.4f}")
 
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
@@ -416,7 +416,7 @@ def train_cov_scaled(config, x_train, y_train, reconstruction_losses=None, adver
 
                 # Contrastive loss
                 contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
-            
+                #contra_loss = 0
                 # Total autoencoder loss
                 ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_contra * contra_loss
 
@@ -468,7 +468,7 @@ def train_cov_scaled(config, x_train, y_train, reconstruction_losses=None, adver
     # Save final loss plot
     if save_loss_plot:
         print("Saving loss plot...")
-        save_loss_plots_cov(reconstruction_losses_total, adversarial_losses_total, cov_losses_total, output_dir="./results/loss_plots/autoencoder_cov")
+        save_loss_plots_cov(reconstruction_losses_total, adversarial_losses_total, cov_losses_total, contra_losses_total, output_dir="./results/loss_plots/autoencoder_cov")
     
     # Save model weights
     if save_model_weights:

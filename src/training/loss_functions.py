@@ -30,7 +30,7 @@ def mutual_information_loss(z, y_true, classifier):
     mi_loss = tf.reduce_mean(log_p_y_given_z - log_q_y)
     return -(mi_loss - 1.0) # Negative since we want to maximize MI - added constant to be positive
 
-def contrastive_loss(z, y_true, tau=0.5):
+# def contrastive_loss(z, y_true, tau=0.5):
     """Contrastive loss (NT-Xent) to enforce class separation in latent space."""
     z = tf.math.l2_normalize(z, axis=1)  # Normalize latent vectors (prevents NaNs)
     
@@ -55,6 +55,20 @@ def contrastive_loss(z, y_true, tau=0.5):
     loss = -tf.math.log(tf.exp(sim_pos) / neg_sum + 1e-8)  # Avoid log(0)
     return tf.reduce_mean(loss)  # Average loss over batch
 
+def contrastive_loss(z, y_true, tau=0.5):
+    """Contrastive loss (NT-Xent) to enforce class separation in latent space."""
+    z = tf.math.l2_normalize(z, axis=1)  # Normalize latent vectors
+    sim_matrix = tf.matmul(z, z, transpose_b=True)  # Cosine similarity (shape: [batch, batch])
+
+    # Create a mask where entries are 1 if same class, 0 otherwise (shape: [batch, batch])
+    y_true = tf.argmax(y_true, axis=1)  # Convert one-hot to class labels
+    mask = tf.cast(tf.equal(y_true[:, None], y_true[None, :]), dtype=tf.float32)  # Compare all pairs
+    # Compute sum of similarities for positive pairs
+    sim_pos = tf.nn.relu(tf.reduce_sum(mask * sim_matrix, axis=1)) / (tf.reduce_sum(mask, axis=1) + 1e-8)  # Sum similarities within class
+
+    # Contrastive loss (negative log probability of same-class pairs)
+    loss =  -tf.reduce_mean(tf.math.log(tf.clip_by_value(sim_pos, 1e-8, 1.0)))
+    return loss
 
 ##### COVARIANCE LOSS #####
 def get_off_diag_values(x):

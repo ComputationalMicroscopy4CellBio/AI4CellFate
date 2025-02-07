@@ -59,7 +59,7 @@ def save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, outpu
     plt.close()
 
 
-def save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, output_dir):
+def save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, contra_losses, output_dir):
     # Create loss plot and save it under the 'results' directory
     plt.figure(figsize=(10, 5))
 
@@ -67,6 +67,7 @@ def save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, o
     plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
     plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
     plt.plot(cov_losses, label='Covariance Loss', color='purple', linestyle='-.', linewidth=2)
+    plt.plot(contra_losses, label='Contrastive Loss', color='green', linestyle=':', linewidth=2)
 
     # Title and labels
     plt.title(f"Training Losses", fontsize=14)
