@@ -590,7 +590,7 @@ def train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train,
         'clf_loss': clf_losses
     }
 
-def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adversarial_losses=None, cov_losses=None, clf_losses=None, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True, save_every_epoch=False):
+def train_clf_scaled(config, x_train, y_train, x_test, y_test, reconstruction_losses=None, adversarial_losses=None, cov_losses=None, clf_losses=None, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True, save_every_epoch=False):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -610,6 +610,7 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
     adversarial_losses_total = []
     cov_losses_total = []
     clf_losses_total = []
+    validation_classification_losses = []
 
     reconstruction_losses_total.extend(reconstruction_losses)
     adversarial_losses_total.extend(adversarial_losses)
@@ -698,6 +699,21 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
             epoch_cov_losses.append(lambda_cov * cov_loss)
             epoch_clf_losses.append(lambda_clf * clf_loss)
             epoch_mi_loss.append(lambda_mi * mi_loss)
+
+        # Validation loss of the MLP classifier
+        epoch_val_clf_loss = []
+        for n_batch in range(len(x_test) // config['batch_size']):
+            idx = np.random.randint(0, x_test.shape[0], config['batch_size'])
+            test_image_batch = x_test[idx]
+
+            # Use the encoder to get the latent space representation
+            test_z_imgs = encoder(test_image_batch, training=False)
+
+            # Get the predictions from the classifier
+            mlp_predictions_val = classifier(test_z_imgs, training=False)
+            validation_classification_loss = bce_loss(np.eye(2)[y_test[idx]], mlp_predictions_val) # One-hot encoding
+            
+            epoch_val_clf_loss.append(validation_classification_loss)
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
@@ -705,11 +721,13 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
         avg_cov_loss = np.mean(epoch_cov_losses)
         avg_clf_loss = np.mean(epoch_clf_losses)
         avg_mi_loss = np.mean(epoch_mi_loss)
+        avg_clf_val_loss = np.mean(epoch_val_clf_loss)
 
         reconstruction_losses_total.append(avg_recon_loss)
         adversarial_losses_total.append(avg_adv_loss)
         cov_losses_total.append(avg_cov_loss)
         clf_losses_total.append(avg_clf_loss)
+        validation_classification_losses.append(avg_clf_val_loss)
 
         # Print progress
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
@@ -718,6 +736,8 @@ def train_clf_scaled(config, x_train, y_train, reconstruction_losses=None, adver
               f"Covariance loss: {avg_cov_loss:.4f}, "
               f"MI loss: {avg_mi_loss:.4f}, "
                 f"Classification loss: {avg_clf_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda clf: {lambda_clf:.4f}")
+
+        print(f"Validation Classification Loss: {avg_clf_val_loss:.4f}")
 
     # Save final loss plot
     if save_loss_plot:

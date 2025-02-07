@@ -98,7 +98,7 @@ def main():
 
     config = {
         'batch_size': 30,
-        'epochs': 30,
+        'epochs': 20,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 10,
@@ -106,7 +106,7 @@ def main():
     }
 
     # Train the autoencoder + cov + clf starting from the optimal lambdas
-    scaled_ae_clf_results = train_clf_scaled(config, x_train, y_train, reconstruction_losses, adversarial_losses, cov_losses, clf_losses, encoder, decoder, discriminator)
+    scaled_ae_clf_results = train_clf_scaled(config, x_train, y_train, x_test, y_test, reconstruction_losses, adversarial_losses, cov_losses, clf_losses, encoder, decoder, discriminator)
 
     final_encoder = scaled_ae_clf_results['encoder']
     final_decoder = scaled_ae_clf_results['decoder']
