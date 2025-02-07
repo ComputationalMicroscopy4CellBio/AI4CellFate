@@ -30,6 +30,16 @@ def mutual_information_loss(z, y_true, classifier):
     mi_loss = tf.reduce_mean(log_p_y_given_z - log_q_y)
     return -(mi_loss - 1.0) # Negative since we want to maximize MI - added constant to be positive
 
+def contrastive_loss(z, y_true, tau=0.5):
+    z = tf.math.l2_normalize(z, axis=1)  # Normalize latent vectors
+    sim_matrix = tf.matmul(z, z, transpose_b=True)  # Cosine similarity
+
+    mask = tf.cast(tf.equal(y_true[:, None], y_true[None, :]), dtype=tf.float32)  # Mask same class
+    sim_pos = tf.reduce_sum(mask * sim_matrix, axis=1)  # Sum similarities within class
+
+    loss = -tf.reduce_mean(tf.math.log(sim_pos + 1e-8)) / tau
+    return loss
+
 ##### COVARIANCE LOSS #####
 def get_off_diag_values(x):
     x_flat = tf.reshape(x,[-1])[:-1]

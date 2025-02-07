@@ -231,7 +231,7 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
     }
 
 
-def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, lambda_recon=1, lambda_adv=1, epochs=20):
+def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=1, lambda_adv=1, epochs=20):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -251,18 +251,20 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, lambda_r
 
     # Initial losses
     lambda_cov = 1
+    lambda_contra = 1
 
     # Placeholder for storing losses
     reconstruction_losses = []
     adversarial_losses = []
     cov_losses = []
+    contra_losses = []
     total_loss = []
 
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
     for epoch in range(epochs): 
-        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses = [], [], []
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses, epoch_contra_losses = [], [], [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = rng.integers(0, x_train.shape[0], config['batch_size'])
@@ -284,8 +286,11 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, lambda_r
                 cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
                 cov_loss = off_diag_loss #0.5 * diag_cov_mean + 0.5 * z_std_loss
 
+                # Contrastive loss
+                contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
+
                 # Total autoencoder loss
-                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_contra * contra_loss
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder
@@ -313,20 +318,24 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, lambda_r
             epoch_reconstruction_losses.append(lambda_recon * recon_loss)
             epoch_adversarial_losses.append(lambda_adv * adv_loss)
             epoch_cov_losses.append(lambda_cov * cov_loss)
+            epoch_contra_losses.append(lambda_contra * contra_loss)
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
         avg_cov_loss = np.mean(epoch_cov_losses)
+        avg_contra_loss = np.mean(epoch_contra_losses)
 
         reconstruction_losses.append(avg_recon_loss)
         adversarial_losses.append(avg_adv_loss)
         cov_losses.append(avg_cov_loss)
+        contra_losses.append(avg_contra_loss)
 
         # Print progress
         print(f"Epoch {epoch + 1}/{epochs}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
+              f"Adversarial loss: {avg_contra_loss:.4f}, "
               f"Covariance loss: {avg_cov_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}")
 
     return {
@@ -335,10 +344,11 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, lambda_r
         'discriminator': discriminator,
         'recon_loss': reconstruction_losses,
         'adv_loss': adversarial_losses,
-        'cov_loss': cov_losses
+        'cov_loss': cov_losses,
+        'contra_loss': contra_losses
     }
 
-def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_losses=None, cov_losses=None, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True, save_every_epoch=False):
+def train_cov_scaled(config, x_train, y_train, reconstruction_losses=None, adversarial_losses=None, cov_losses=None, contra_losses=None, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True, save_every_epoch=False):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -354,10 +364,12 @@ def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_lo
     reconstruction_losses_total = []
     adversarial_losses_total = []
     cov_losses_total = []
+    contra_losses_total = []
 
     reconstruction_losses_total.extend(reconstruction_losses)
     adversarial_losses_total.extend(adversarial_losses)
     cov_losses_total.extend(cov_losses)
+    contra_losses_total.extend(contra_losses)
 
     lambda_recon = 1/reconstruction_losses[-1]
     lambda_adv = 1/adversarial_losses[-1]
@@ -366,6 +378,7 @@ def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_lo
     lambda_recon = lambda_recon / total
     lambda_adv = lambda_adv / total
     lambda_cov = lambda_cov / total
+    lambda_contra = 1
 
     print(f"Initial lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}")
 
@@ -375,7 +388,7 @@ def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_lo
     #initial_weights = encoder.get_weights()
 
     for epoch in range(config['epochs']): 
-        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses = [], [], []
+        epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses, epoch_contra_losses = [], [], [], []
 
         # final_weights = encoder.get_weights()
         # assert all(np.array_equal(i, f) for i, f in zip(initial_weights, final_weights)), "Weights changed!"
@@ -400,8 +413,11 @@ def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_lo
                 cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
                 cov_loss = off_diag_loss#0.5 * diag_cov_mean + 0.5 * z_std_loss
 
+                # Contrastive loss
+                contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
+
                 # Total autoencoder loss
-                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_contra * contra_loss
 
             # Backpropagation for autoencoder
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables
@@ -428,20 +444,24 @@ def train_cov_scaled(config, x_train, reconstruction_losses=None, adversarial_lo
             epoch_reconstruction_losses.append(lambda_recon * recon_loss)
             epoch_adversarial_losses.append(lambda_adv * adv_loss)
             epoch_cov_losses.append(lambda_cov * cov_loss)
+            epoch_contra_losses.append(lambda_contra * contra_loss)
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
         avg_cov_loss = np.mean(epoch_cov_losses)
+        avg_contra_loss = np.mean(epoch_contra_losses)
 
         reconstruction_losses_total.append(avg_recon_loss)
         adversarial_losses_total.append(avg_adv_loss)
         cov_losses_total.append(avg_cov_loss)
+        contra_losses_total.append(avg_contra_loss)
 
         # Print progress
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
+              f"Contrastive loss: {avg_contra_loss:.4f}, "
               f"Covariance loss: {avg_cov_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}")
 
     # Save final loss plot
