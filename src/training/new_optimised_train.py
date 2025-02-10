@@ -35,7 +35,7 @@ def train_lambdas_autoencoder(config, x_train, encoder=None, decoder=None, discr
     adversarial_losses = []
 
     # Initial losses
-    lambda_recon = 1
+    lambda_recon = 5
     lambda_adv = 1
 
     real_y = 0.9 * np.ones((config['batch_size'], 1))
@@ -231,7 +231,7 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
     }
 
 
-def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=1, lambda_adv=1, epochs=20):
+def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=5, lambda_adv=1, epochs=20):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -250,8 +250,9 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
         discriminator = Discriminator(latent_dim=config['latent_dim']).model
 
     # Initial losses
-    lambda_cov = 1
-    lambda_contra = 0.1
+    lambda_cov = 5
+    lambda_contra = 4
+    save_loss_plot = True
 
     # Placeholder for storing losses
     reconstruction_losses = []
@@ -290,7 +291,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
                 contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
                 #contra_loss = 0
                 # Total autoencoder loss
-                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_contra * contra_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + 5 * lambda_cov * cov_loss + lambda_contra * contra_loss
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder
@@ -336,7 +337,10 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, "
               f"Contrastive loss: {avg_contra_loss:.4f}, "
-              f"Covariance loss: {avg_cov_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}")
+              f"Covariance loss: {avg_cov_loss:.4f}, lamdba recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}, lambda cov: {lambda_cov:.4f}, lambda contra: {lambda_contra:.4f}")
+    
+    if save_loss_plot:
+        save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, contra_losses, output_dir="./results/loss_plots/autoencoder_cov")
 
     return {
         'encoder': encoder,
@@ -418,7 +422,7 @@ def train_cov_scaled(config, x_train, y_train, reconstruction_losses=None, adver
                 contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
                 #contra_loss = 0
                 # Total autoencoder loss
-                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_contra * contra_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + 5 * lambda_cov * cov_loss + lambda_contra * contra_loss
 
             # Backpropagation for autoencoder
             trainable_variables = encoder.trainable_variables + decoder.trainable_variables

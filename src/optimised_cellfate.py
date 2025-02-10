@@ -1,6 +1,8 @@
 import numpy as np
 from src.training.new_optimised_train import *
 from src.evaluation.evaluate import Evaluation
+from src.training.train import *
+from src.utils import *
 
 # Function to load data
 def load_data():
@@ -54,22 +56,32 @@ def main():
         'GaussianNoise_std': 0.003,
     }
 
-    # Train the lambda optimisation autoencoder
-    lambda_autoencoder_results = train_lambdas_autoencoder(config, x_train)
-    encoder = lambda_autoencoder_results['encoder']
-    decoder = lambda_autoencoder_results['decoder']
-    discriminator = lambda_autoencoder_results['discriminator']
-    reconstruction_losses = lambda_autoencoder_results['recon_loss']
-    adversarial_losses = lambda_autoencoder_results['adv_loss']
+    # # Train the lambda optimisation autoencoder
+    # lambda_autoencoder_results = train_lambdas_autoencoder(config, x_train, epochs=15)
+    # encoder = lambda_autoencoder_results['encoder']
+    # decoder = lambda_autoencoder_results['decoder']
+    # discriminator = lambda_autoencoder_results['discriminator']
+    # reconstruction_losses = lambda_autoencoder_results['recon_loss']
+    # adversarial_losses = lambda_autoencoder_results['adv_loss']
 
-    # Train the autoencoder starting from the optimal lambdas
-    scaled_autoencoder_results = train_autoencoder_scaled(config, x_train, reconstruction_losses, adversarial_losses, encoder, decoder, discriminator)
-    encoder = scaled_autoencoder_results['encoder']
-    decoder = scaled_autoencoder_results['decoder']
-    discriminator = scaled_autoencoder_results['discriminator']
+    # # Train the autoencoder starting from the optimal lambdas
+    # scaled_autoencoder_results = train_autoencoder_scaled(config, x_train, reconstruction_losses, adversarial_losses, encoder, decoder, discriminator)
+    # encoder = scaled_autoencoder_results['encoder']
+    # decoder = scaled_autoencoder_results['decoder']
+    # discriminator = scaled_autoencoder_results['discriminator']
 
     # Evaluate the autoencoder
-    evaluate_model(scaled_autoencoder_results['encoder'], scaled_autoencoder_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder", full_evaluation=False)
+    #evaluate_model(encoder, decoder, x_train, y_train, output_dir="./results/optimisation/autoencoder", full_evaluation=False)
+    #save_model_weights_to_disk(encoder, decoder, discriminator, output_dir="./results/models/autoencoder")
+
+    img_shape = (x_train.shape[1], x_train.shape[2], 1)
+    encoder = Encoder(img_shape=img_shape, latent_dim=config['latent_dim'], num_classes=2, gaussian_noise_std=config['GaussianNoise_std']).model
+    decoder = Decoder(latent_dim=config['latent_dim'], img_shape=img_shape, gaussian_noise_std=config['GaussianNoise_std']).model
+    discriminator = Discriminator(latent_dim=config['latent_dim']).model
+
+    encoder.load_weights("/Users/inescunha/Documents/GitHub/CellFate/results/models/autoencoder/encoder.weights.h5")
+    decoder.load_weights("/Users/inescunha/Documents/GitHub/CellFate/results/models/autoencoder/decoder.weights.h5")
+    discriminator.load_weights("/Users/inescunha/Documents/GitHub/CellFate/results/models/autoencoder/discriminator.weights.h5")
 
     config = {
         'batch_size': 30,
@@ -80,8 +92,8 @@ def main():
         'GaussianNoise_std': 0.003,
     }
 
-    # Train the lambda optimisation autoencoder + cov
-    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv'])
+    #Train the lambda optimisation autoencoder + cov
+    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, epochs=50) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
     discriminator = lambda_ae_cov_results['discriminator']
@@ -90,12 +102,26 @@ def main():
     cov_losses = lambda_ae_cov_results['cov_loss']
     contra_losses = lambda_ae_cov_results['contra_loss']
 
+    save_model_weights_to_disk(encoder, decoder, discriminator, output_dir="./results/models/autoencoder_cov")
     # Train the autoencoder starting from the optimal lambdas
-    scaled_ae_cov_results = train_cov_scaled(config, x_train, y_train, reconstruction_losses, adversarial_losses, cov_losses, contra_losses, encoder, decoder, discriminator)
-
+    #scaled_ae_cov_results = train_cov_scaled(config, x_train, y_train, reconstruction_losses, adversarial_losses, cov_losses, contra_losses, encoder, decoder, discriminator)
+    #scaled_ae_cov_results = train_cov(config, encoder, decoder, discriminator, x_train, y_train)
     # Evaluate the autoencoder + cov
-    evaluate_model(scaled_ae_cov_results['encoder'], scaled_ae_cov_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder_cov", full_evaluation=False)
+    evaluate_model(lambda_ae_cov_results['encoder'], lambda_ae_cov_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder_cov", full_evaluation=False)
     
+
+    # config = {
+    #     'batch_size': 30,
+    #     'epochs': 20,
+    #     'learning_rate': 0.001,
+    #     'seed': 42,
+    #     'lambda_recon': 0.4401, 
+    #     'lambda_adv': 0.1290,
+    #     'lambda_cov': 0.3269,
+    #     'latent_dim': 10,
+    #     'GaussianNoise_std': 0.003,   
+    # }
+
     # Train the lambda optimisation autoencoder + cov + classifier
     # lambda_ae_clf_results = train_lambdas_clf(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv'])
     # encoder = lambda_ae_clf_results['encoder']
