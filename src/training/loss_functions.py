@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 def mse_loss(y_true, y_pred):
     return tf.reduce_mean(tf.square(y_true - y_pred))
@@ -30,31 +31,155 @@ def mutual_information_loss(z, y_true, classifier):
     mi_loss = tf.reduce_mean(log_p_y_given_z - log_q_y)
     return -(mi_loss - 1.0) # Negative since we want to maximize MI - added constant to be positive
 
-# def contrastive_loss(z, y_true, tau=0.5):
-#     """Contrastive loss (NT-Xent) to enforce class separation in latent space."""
-#     z = tf.math.l2_normalize(z, axis=1)  # Normalize latent vectors (prevents NaNs)
-    
-#     sim_matrix = tf.matmul(z, z, transpose_b=True)  # Compute cosine similarity
-#     sim_matrix /= tau  # Temperature scaling
+#### Contrastive loss ####
 
-#     # Convert one-hot labels to class indices
-#     y_true = tf.argmax(y_true, axis=1)  # Shape: (batch_size,)
+### Adapted from paper "Supervised Contrastive Learning" ###
+def pdist_euclidean(A):
+    # Euclidean pdist
+    # https://stackoverflow.com/questions/37009647/compute-pairwise-distance-in-a-batch-without-replicating-tensor-in-tensorflow
+    r = tf.reduce_sum(A*A, 1)
 
-#     # Compute the mask for positive pairs
-#     mask = tf.cast(tf.equal(y_true[:, None], y_true[None, :]), dtype=tf.float32)  # Shape: (batch, batch)
+    # turn r into column vector
+    r = tf.reshape(r, [-1, 1])
+    D = r - 2*tf.matmul(A, tf.transpose(A)) + tf.transpose(r)
+    return tf.sqrt(D)
 
-#     # Compute positive similarities
-#     sim_pos = tf.reduce_sum(mask * sim_matrix, axis=1) / (tf.reduce_sum(mask, axis=1) + 1e-8)  # Avoid division by zero
-    
-#     # Compute negative similarities (all pairs except self and positives)
-#     exp_sim_matrix = tf.exp(sim_matrix)  # Exponentiate similarity scores
-#     exp_sim_matrix = exp_sim_matrix * (1.0 - tf.eye(tf.shape(z)[0]))  # Remove self-comparisons
-#     neg_sum = tf.reduce_sum(exp_sim_matrix, axis=1) + 1e-8  # Avoid division by zero
-    
-#     # Contrastive loss (NT-Xent)
-#     loss = -tf.math.log(tf.exp(sim_pos) / neg_sum + 1e-8)  # Avoid log(0)
-#     return tf.reduce_mean(loss)  # Average loss over batch
+def square_to_vec(D):
+    '''Convert a squared form pdist matrix to vector form.
+    '''
+    n = D.shape[0]
+    triu_idx = np.triu_indices(n, k=1)
+    d_vec = tf.gather_nd(D, list(zip(triu_idx[0], triu_idx[1])))
+    return d_vec
 
+def get_contrast_batch_labels(y):
+    '''
+    Make contrast labels by taking all the pairwise in y
+    y: tensor with shape: (batch_size, )
+    returns:   
+        tensor with shape: (batch_size * (batch_size-1) // 2, )
+    '''
+    y_col_vec = tf.reshape(tf.cast(y, tf.float32), [-1, 1])
+    D_y = pdist_euclidean(y_col_vec)
+    d_y = square_to_vec(D_y)
+    y_contrasts = tf.cast(d_y == 0, tf.int32)
+    return y_contrasts
+
+def tfa_contrastive_loss(y_true, y_pred, margin = 1.0) -> tf.Tensor:
+    r"""Computes the contrastive loss between `y_true` and `y_pred`.
+
+    This loss encourages the embedding to be close to each other for
+    the samples of the same label and the embedding to be far apart at least
+    by the margin constant for the samples of different labels.
+
+    The euclidean distances `y_pred` between two embedding matrices
+    `a` and `b` with shape `[batch_size, hidden_size]` can be computed
+    as follows:
+
+    >>> a = tf.constant([[1, 2],
+    ...                 [3, 4],
+    ...                 [5, 6]], dtype=tf.float16)
+    >>> b = tf.constant([[5, 9],
+    ...                 [3, 6],
+    ...                 [1, 8]], dtype=tf.float16)
+    >>> y_pred = tf.linalg.norm(a - b, axis=1)
+    >>> y_pred
+    <tf.Tensor: shape=(3,), dtype=float16, numpy=array([8.06 , 2.   , 4.473],
+    dtype=float16)>
+
+    <... Note: constants a & b have been used purely for
+    example purposes and have no significant value ...>
+
+    See: http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+
+    Args:
+      y_true: 1-D integer `Tensor` with shape `[batch_size]` of
+        binary labels indicating positive vs negative pair.
+      y_pred: 1-D float `Tensor` with shape `[batch_size]` of
+        distances between two embedding matrices.
+      margin: margin term in the loss definition.
+
+    Returns:
+      contrastive_loss: 1-D float `Tensor` with shape `[batch_size]`.
+    """
+    y_pred = tf.convert_to_tensor(y_pred)
+    y_true = tf.dtypes.cast(y_true, y_pred.dtype)
+    return y_true * tf.math.square(y_pred) + (1.0 - y_true) * tf.math.square(
+        tf.math.maximum(margin - y_pred, 0.0)
+    )
+
+def max_margin_contrastive_loss(z, y, margin=1.0, metric='euclidean'):
+    '''
+    Wrapper for the maximum margin contrastive loss (Hadsell et al. 2006)
+    `tfa.losses.contrastive_loss`
+    Args:
+        z: hidden vector of shape [bsz, n_features].
+        y: ground truth of shape [bsz].
+        metric: one of ('euclidean', 'cosine')
+    '''
+    # compute pair-wise distance matrix
+    if metric == 'euclidean':
+        D = pdist_euclidean(z)
+    elif metric == 'cosine':
+        D = 1 - tf.matmul(z, z, transpose_a=False, transpose_b=True)
+    # convert squareform matrix to vector form
+    d_vec = square_to_vec(D)
+    # make contrastive labels
+    y_contrasts = get_contrast_batch_labels(y)
+    loss = tfa_contrastive_loss(y_contrasts, d_vec, margin=margin)
+    # exploding/varnishing gradients on large batch?
+    return tf.reduce_mean(loss)
+
+def supervised_nt_xent_loss(z, y, temperature=0.5, base_temperature=0.07):
+    '''
+    Supervised normalized temperature-scaled cross entropy loss. 
+    A variant of Multi-class N-pair Loss from (Sohn 2016)
+    Later used in SimCLR (Chen et al. 2020, Khosla et al. 2020).
+    Implementation modified from: 
+        - https://github.com/google-research/simclr/blob/master/objective.py
+        - https://github.com/HobbitLong/SupContrast/blob/master/losses.py
+    Args:
+        z: hidden vector of shape [bsz, n_features].
+        y: ground truth of shape [bsz].
+    '''
+    batch_size = tf.shape(z)[0]
+    contrast_count = 1
+    anchor_count = contrast_count
+    y = tf.expand_dims(y, -1)
+
+    # mask: contrastive mask of shape [bsz, bsz], mask_{i,j}=1 if sample j
+    #     has the same class as sample i. Can be asymmetric.
+    mask = tf.cast(tf.equal(y, tf.transpose(y)), tf.float32)
+    anchor_dot_contrast = tf.divide(
+        tf.matmul(z, tf.transpose(z)),
+        temperature
+    )
+    # # for numerical stability
+    logits_max = tf.reduce_max(anchor_dot_contrast, axis=1, keepdims=True)
+    logits = anchor_dot_contrast - logits_max
+    # # tile mask
+    logits_mask = tf.ones_like(mask) - tf.eye(batch_size)
+    mask = mask * logits_mask
+    # compute log_prob
+    exp_logits = tf.exp(logits) * logits_mask
+    log_prob = logits - \
+        tf.math.log(tf.reduce_sum(exp_logits, axis=1, keepdims=True))
+
+    # compute mean of log-likelihood over positive
+    # this may introduce NaNs due to zero division,
+    # when a class only has one example in the batch
+    mask_sum = tf.reduce_sum(mask, axis=1)
+    mean_log_prob_pos = tf.reduce_sum(
+        mask * log_prob, axis=1)[mask_sum > 0] / mask_sum[mask_sum > 0]
+
+    # loss
+    loss = -(temperature / base_temperature) * mean_log_prob_pos
+    # loss = tf.reduce_mean(tf.reshape(loss, [anchor_count, batch_size]))
+    loss = tf.reduce_mean(loss)
+    return loss
+
+
+# According to the formula
 def contrastive_loss(z, y_true, tau=0.5):
     """NT-Xent contrastive loss to enforce class separation in latent space."""
     z = tf.math.l2_normalize(z, axis=1)  # Normalize latent vectors to unit norm
@@ -84,26 +209,9 @@ def contrastive_loss(z, y_true, tau=0.5):
     loss = -tf.math.log(sim_pos / denom)  # Compute log-ratio of positive to all similarities
     return tf.reduce_mean(loss)  # Average over batch
 
-# def contrastive_loss(z, y_true, tau=0.5):
-#     """Contrastive loss (NT-Xent) to enforce class separation in latent space."""
-#     z = tf.math.l2_normalize(z, axis=1)  # Normalize latent vectors
-#     sim_matrix = tf.matmul(z, z, transpose_b=True)  # Cosine similarity (shape: [batch, batch])
 
-#     # Convert one-hot to class labels
-#     y_true = tf.argmax(y_true, axis=1)
 
-#     # Create a mask where entries are 1 if same class, 0 otherwise
-#     mask = tf.cast(tf.equal(y_true[:, None], y_true[None, :]), dtype=tf.float32)
-
-#     # Sum of similarities for positive pairs
-#     sim_pos = tf.reduce_sum(mask * sim_matrix, axis=1)  # Sum similarities within class
-
-#     # Contrastive loss (negative log probability of same-class pairs)
-#     loss = -tf.reduce_mean(tf.math.log(sim_pos + 1e-8) / tau)
-    
-#     return loss
-
-##### COVARIANCE LOSS #####
+##### Covariance loss #####
 def get_off_diag_values(x):
     x_flat = tf.reshape(x,[-1])[:-1]
     x_reshape = tf.reshape(x_flat,[x.shape[0]-1, x.shape[0]+1])[:, 1:]
@@ -138,7 +246,7 @@ def unified_regularization_loss(z_batch):
     # Off-diagonal losses
     off_diag_loss = tf.reduce_mean(tf.abs(get_off_diag_values(cov)))
     off_diag_mean_10 = tf.reduce_mean(tf.abs(get_off_diag_values(cov[0:10,0:10])))
-    
+
     return variance_loss, diag_cov_mean, off_diag_loss, off_diag_mean_10
     
 
