@@ -120,6 +120,29 @@ def cov_loss_terms(z_batch):
     off_diag_loss = tf.reduce_mean(tf.abs(get_off_diag_values(cov)))
     return cov, z_std_loss, diag_cov_mean , off_diag_loss
 
+def get_off_diag_values(x):
+    x_flat = tf.reshape(x,[-1])[:-1]
+    x_reshape = tf.reshape(x_flat,[x.shape[0]-1, x.shape[0]+1])[:, 1:]
+    off_diag_values = tf.reshape(x_reshape,[-1])
+    return off_diag_values
+def unified_regularization_loss(z_batch):
+    # Center the batch
+    z_centered = z_batch - tf.reduce_mean(z_batch, axis=0)
+    # Variance term
+    std = tf.sqrt(tf.math.reduce_variance(z_batch, axis=0) + 0.0001)
+    variance_loss = tf.reduce_mean(tf.nn.relu(1 - std))
+    # Covariance terms
+    cov = (tf.transpose(z_centered) @ z_centered) / (z_batch.shape[0] - 1)
+    diag_cov = tf.linalg.diag_part(cov)
+    diag_cov_mean = tf.reduce_mean(tf.abs(diag_cov))
+    # Off-diagonal losses
+    off_diag_loss = tf.reduce_mean(tf.abs(get_off_diag_values(cov)))
+    off_diag_mean_10 = tf.reduce_mean(tf.abs(get_off_diag_values(cov[0:10,0:10])))
+    
+    return variance_loss, diag_cov_mean, off_diag_loss, off_diag_mean_10
+    
+
+
 def gaussian_filter(kernel_size=5, sigma=1.0):  # Use smaller kernel size
     x = tf.range(-kernel_size // 2 + 1, kernel_size // 2 + 1, dtype=tf.float32)
     g = tf.exp(-0.5 * (x / sigma)**2)

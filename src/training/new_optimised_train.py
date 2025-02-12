@@ -250,7 +250,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
         discriminator = Discriminator(latent_dim=config['latent_dim']).model
 
     # Initial losses
-    lambda_cov = 5
+    lambda_cov = 0
     lambda_contra = 4
     save_loss_plot = True
 
@@ -284,8 +284,10 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
                 # Covariance loss
-                cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
-                cov_loss = off_diag_loss #0.5 * diag_cov_mean + 0.5 * z_std_loss
+                # cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
+                # cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss #off_diag_loss
+
+                cov_loss = unified_regularization_loss(z_imgs)[1]
 
                 # Contrastive loss
                 contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
