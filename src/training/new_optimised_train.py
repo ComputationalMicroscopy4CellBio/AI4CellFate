@@ -231,7 +231,7 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
     }
 
 
-def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=5, lambda_adv=1, epochs=20):
+def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=5, lambda_adv=3, epochs=20):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -251,7 +251,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
 
     # Initial losses
     lambda_cov = 0
-    lambda_contra = 4
+    lambda_contra = 10
     save_loss_plot = True
 
     # Placeholder for storing losses
