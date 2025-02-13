@@ -231,7 +231,7 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
     }
 
 
-def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=5, lambda_adv=4, epochs=20):
+def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=6, lambda_adv=4, epochs=20):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -251,7 +251,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
 
     # Initial losses
     lambda_cov = 0
-    lambda_contra = 0.5
+    lambda_contra = 8
     save_loss_plot = True
 
     # Placeholder for storing losses
@@ -286,15 +286,14 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
                 # Covariance loss
                 # cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
                 # cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss #off_diag_loss
-
                 cov_loss = unified_regularization_loss(z_imgs)[1]
 
                 # Contrastive loss
-                #contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
-                contra_loss = supervised_nt_xent_loss(z_imgs, y_train[idx])
+                contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
+                #contra_loss = max_margin_contrastive_loss(z_imgs, y_train[idx])
 
                 # Total autoencoder loss
-                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + 5 * lambda_cov * cov_loss + lambda_contra * contra_loss
+                ae_loss = lambda_recon * recon_loss + lambda_adv * adv_loss + lambda_cov * cov_loss + lambda_contra * contra_loss
                 total_loss.append(ae_loss)
 
             # Backpropagation for autoencoder
@@ -380,7 +379,7 @@ def train_cov_scaled(config, x_train, y_train, reconstruction_losses=None, adver
 
     lambda_recon = 1/reconstruction_losses[-1]
     lambda_adv = 1/adversarial_losses[-1]
-    lambda_cov = 1/cov_losses[-1]
+    lambda_cov = 0
     lambda_contra = 1/contra_losses[-1]
     total = lambda_recon + lambda_adv + lambda_cov + lambda_contra
     lambda_recon = lambda_recon / total
