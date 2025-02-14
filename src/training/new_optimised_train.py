@@ -5,8 +5,10 @@ import os
 import numpy as np
 from ..config import CONFIG
 from ..utils import *
+from ..evaluation.evaluate import calculate_kl_divergence
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
+from scipy.spatial.distance import euclidean
 
 
 def train_lambdas_autoencoder(config, x_train, encoder=None, decoder=None, discriminator=None, epochs=5):
@@ -286,7 +288,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
                 # Covariance loss
                 # cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
                 # cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss #off_diag_loss
-                cov_loss = unified_regularization_loss(z_imgs)[1]
+                cov_loss = 0.5 * unified_regularization_loss(z_imgs)[1]
 
                 # Contrastive loss
                 contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
@@ -323,6 +325,21 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
             epoch_cov_losses.append(lambda_cov * cov_loss)
             epoch_contra_losses.append(lambda_contra * contra_loss)
         
+        # Compute centroids
+        z_imgs_train = encoder.predict(x_train)
+        centroid_class_0 = np.mean(z_imgs_train[y_train == 0], axis=0)
+        centroid_class_1 = np.mean(z_imgs_train[y_train == 1], axis=0)
+
+        # Compute Euclidean distance between centroids
+        distance = euclidean(centroid_class_0, centroid_class_1)
+        kl_divergence = calculate_kl_divergence(z_imgs_train)
+
+        if distance > 1.3:
+            print("Classes are well separated! :)")
+            if kl_divergence[0] < 0.1 and kl_divergence[1] < 0.1:
+                print("Latent Space is Gaussian-distributed!")
+                break
+            
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
