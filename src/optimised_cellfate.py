@@ -93,9 +93,9 @@ def main():
         'latent_dim': 2,
         'GaussianNoise_std': 0.003,
     }
-
+ 
     #Train the lambda optimisation autoencoder + cov
-    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, epochs=100) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
+    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, epochs=500) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
     discriminator = lambda_ae_cov_results['discriminator']
@@ -111,7 +111,6 @@ def main():
     # Evaluate the autoencoder + cov
     evaluate_model(lambda_ae_cov_results['encoder'], lambda_ae_cov_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder_cov", full_evaluation=False)
     
-
     # config = {
     #     'batch_size': 30,
     #     'epochs': 20,

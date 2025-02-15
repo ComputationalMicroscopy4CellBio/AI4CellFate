@@ -338,7 +338,8 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
             print("Classes are well separated! :)")
             if kl_divergence[0] < 0.1 and kl_divergence[1] < 0.1:
                 print("Latent Space is Gaussian-distributed!")
-                break
+                if epoch >= 99:
+                    break
             
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
