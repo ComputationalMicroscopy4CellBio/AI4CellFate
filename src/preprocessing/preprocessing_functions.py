@@ -324,3 +324,33 @@ def daugther_trace_removal(matrix):
     
     return processed_matrix
 
+
+def daughter_trace_removal(tabular_data, image_data):
+    """
+    Removes information from daughter cells in both tabular and image data.
+    
+    - For each cell (row) in tabular_data, it finds the first zero in column 4.
+    - From that time point onward, it sets all values in that row to zero.
+    - The same index is used to set corresponding images in image_data to zero.
+
+    Args:
+        tabular_data (numpy.ndarray): A 3D matrix of shape (cells, time, features).
+        image_data (numpy.ndarray): A 5D matrix of shape (cells, time, channels, height, width).
+
+    Returns:
+        tuple: Processed (tabular_data, image_data) with zeroed-out values from the first zero index onward.
+    """
+    processed_tabular = tabular_data.copy()
+    processed_images = image_data.copy()
+    
+    for cell_idx, cell in enumerate(processed_tabular):
+        # Find the first zero in the 4th column (index 3)
+        first_zero_index = np.argmax(cell[:, 4] == 0) if np.any(cell[:, 4] == 0) else None
+        
+        # If a zero is found, zero out both tabular and image data from that time point onward
+        if first_zero_index is not None:
+            processed_tabular[cell_idx, first_zero_index:, :] = 0
+            processed_images[cell_idx, first_zero_index:, :, :, :] = 0  # Zeroing corresponding images
+    
+    return processed_tabular, processed_images
+
