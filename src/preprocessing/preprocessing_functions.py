@@ -355,6 +355,9 @@ def daughter_trace_removal(tabular_data, image_data):
     return processed_tabular, processed_images
 
 
+import numpy as np
+from scipy.ndimage import label, find_objects
+
 def remove_debris_from_fov(fov_image):
     """
     Removes debris from a given FOV, keeping only the largest connected component.
@@ -398,6 +401,47 @@ def clean_all_cells(cell_images):
     """
     cleaned_images = np.zeros_like(cell_images)
     for cell_idx in range(cell_images.shape[0]):
-        for channel_idx in range(cell_images.shape[1]):
-            cleaned_images[cell_idx, channel_idx] = remove_debris_from_fov(cell_images[cell_idx, channel_idx])
+        for time_idx in range(cell_images.shape[1]):
+            for channel_idx in range(cell_images.shape[2]):
+                cleaned_images[cell_idx, time_idx, channel_idx] = remove_debris_from_fov(cell_images[cell_idx, time_idx, channel_idx])
     return cleaned_images
+
+
+def center_cells(images):
+    """
+    Centers each cell in the middle of a 20x20 field-of-view.
+    
+    Args:
+        images: NumPy array of shape (num_cells, 20, 20), where each cell is a binary or intensity image.
+
+    Returns:
+        Centered images of the same shape (num_cells, 20, 20).
+    """
+    num_cells, height, width = images.shape
+    centered_images = np.zeros_like(images)
+
+    for i in range(num_cells):
+        img = images[i]
+
+        # Find nonzero pixel indices
+        y_indices, x_indices = np.where(img > 0)
+        if len(y_indices) == 0 or len(x_indices) == 0:
+            continue  # Skip empty images
+        
+        # Get bounding box
+        y_min, y_max = y_indices.min(), y_indices.max()
+        x_min, x_max = x_indices.min(), x_indices.max()
+        
+        # Extract the cell
+        cropped_cell = img[y_min:y_max+1, x_min:x_max+1]
+
+        # Compute new position to center the cropped cell
+        new_y_start = (height - cropped_cell.shape[0]) // 2
+        new_x_start = (width - cropped_cell.shape[1]) // 2
+        
+        # Place cropped cell into the new centered array
+        centered_images[i, new_y_start:new_y_start+cropped_cell.shape[0], 
+                            new_x_start:new_x_start+cropped_cell.shape[1]] = cropped_cell
+
+    return centered_images
+
