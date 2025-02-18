@@ -417,33 +417,35 @@ def center_cells(images):
     Returns:
         Centered images of the same shape (num_cells, 20, 20).
     """
-    num_cells, height, width = images.shape
+    num_cells, frame, height, width = images.shape
     centered_images = np.zeros_like(images)
 
     for i in range(num_cells):
-        img = images[i]
+        for j in range(frame):
+            img = images[i, j]
 
-        # Find nonzero pixel indices
-        y_indices, x_indices = np.where(img > 0)
-        if len(y_indices) == 0 or len(x_indices) == 0:
-            continue  # Skip empty images
-        
-        # Get bounding box
-        y_min, y_max = y_indices.min(), y_indices.max()
-        x_min, x_max = x_indices.min(), x_indices.max()
-        
-        # Extract the cell
-        cropped_cell = img[y_min:y_max+1, x_min:x_max+1]
+            # Find nonzero pixel indices
+            y_indices, x_indices = np.where(img > 0)
+            if len(y_indices) == 0 or len(x_indices) == 0:
+                continue  # Skip empty images
+            
+            # Get bounding box
+            y_min, y_max = y_indices.min(), y_indices.max()
+            x_min, x_max = x_indices.min(), x_indices.max()
+            
+            # Extract the cell
+            cropped_cell = img[y_min:y_max+1, x_min:x_max+1]
 
-        # Compute new position to center the cropped cell
-        new_y_start = (height - cropped_cell.shape[0]) // 2
-        new_x_start = (width - cropped_cell.shape[1]) // 2
-        
-        # Place cropped cell into the new centered array
-        centered_images[i, new_y_start:new_y_start+cropped_cell.shape[0], 
-                            new_x_start:new_x_start+cropped_cell.shape[1]] = cropped_cell
+            # Compute new position to center the cropped cell
+            new_y_start = (height - cropped_cell.shape[0]) // 2
+            new_x_start = (width - cropped_cell.shape[1]) // 2
+            
+            # Place cropped cell into the new centered array
+            centered_images[i, j, new_y_start:new_y_start+cropped_cell.shape[0], 
+                                new_x_start:new_x_start+cropped_cell.shape[1]] = cropped_cell
 
     return centered_images
+
 
 def normalize_channels(cell_images):
     """
