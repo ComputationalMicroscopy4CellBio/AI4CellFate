@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import glob
 import tifffile as tiff
-
+from scipy.ndimage import label, find_objects
 
 ############ IMAGES ############
 
@@ -354,3 +354,50 @@ def daughter_trace_removal(tabular_data, image_data):
     
     return processed_tabular, processed_images
 
+
+def remove_debris_from_fov(fov_image):
+    """
+    Removes debris from a given FOV, keeping only the largest connected component.
+    
+    Parameters:
+    - fov_image (numpy array): 2D array (height, width) representing the FOV.
+    
+    Returns:
+    - cleaned_image (numpy array): 2D array with only the main cell preserved.
+    """
+    # Identify connected components in the FOV
+    labeled_image, num_features = label(fov_image > 0)  # Label all non-zero regions
+    
+    if num_features == 0:
+        # No cells detected, return the input (empty FOV)
+        return fov_image
+
+    # Measure the size of each component
+    component_sizes = np.array([np.sum(labeled_image == label) for label in range(1, num_features + 1)])
+
+    # Find the largest component (assuming it's the main cell)
+    largest_component_label = np.argmax(component_sizes) + 1
+
+    # Create a cleaned image containing only the largest component
+    cleaned_image = np.zeros_like(fov_image)
+    cleaned_image[labeled_image == largest_component_label] = fov_image[labeled_image == largest_component_label]
+
+    return cleaned_image
+
+# Example usage
+# Assuming `cell_images` is the numpy array of shape (cell, channel, height, width)
+def clean_all_cells(cell_images):
+    """
+    Apply debris removal to all cells in a dataset.
+    
+    Parameters:
+    - cell_images (numpy array): Array of shape (cell, channel, height, width).
+    
+    Returns:
+    - cleaned_images (numpy array): Cleaned array of the same shape.
+    """
+    cleaned_images = np.zeros_like(cell_images)
+    for cell_idx in range(cell_images.shape[0]):
+        for channel_idx in range(cell_images.shape[1]):
+            cleaned_images[cell_idx, channel_idx] = remove_debris_from_fov(cell_images[cell_idx, channel_idx])
+    return cleaned_images
