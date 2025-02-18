@@ -95,7 +95,7 @@ def main():
     }
  
     #Train the lambda optimisation autoencoder + cov
-    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, epochs=500) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
+    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test, epochs=150) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
     discriminator = lambda_ae_cov_results['discriminator']

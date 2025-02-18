@@ -9,7 +9,8 @@ from ..evaluation.evaluate import calculate_kl_divergence
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
 from scipy.spatial.distance import euclidean
-
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
 
 def train_lambdas_autoencoder(config, x_train, encoder=None, decoder=None, discriminator=None, epochs=5):
     # Set random seeds for reproducibility
@@ -233,7 +234,7 @@ def train_autoencoder_scaled(config, x_train, reconstruction_losses=None, advers
     }
 
 
-def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, lambda_recon=6, lambda_adv=4, epochs=20):
+def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test, lambda_recon=6, lambda_adv=4, epochs=20):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -252,7 +253,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
         discriminator = Discriminator(latent_dim=config['latent_dim']).model
 
     # Initial losses
-    lambda_cov = 0
+    lambda_cov = 0.0001
     lambda_contra = 8
     save_loss_plot = True
 
@@ -286,9 +287,9 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
                 # Covariance loss
-                # cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
-                # cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss #off_diag_loss
-                cov_loss = 0.5 * unified_regularization_loss(z_imgs)[1]
+                cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
+                cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss #off_diag_loss
+                #cov_loss = 0.5 * unified_regularization_loss(z_imgs)[1]
 
                 # Contrastive loss
                 contra_loss = contrastive_loss(z_imgs, np.eye(2)[y_train[idx]], tau=0.5)
@@ -327,7 +328,8 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
         
         # Compute centroids
         z_imgs_train = encoder.predict(x_train)
-        centroid_class_0 = np.mean(z_imgs_train[y_train == 0], axis=0)
+        z_imgs_test = encoder.predict(x_test)
+        centroid_class_0 = np.mean(z_imgs_train[y_train == 0], axis=0) #[y_test == 0]
         centroid_class_1 = np.mean(z_imgs_train[y_train == 1], axis=0)
 
         # Compute Euclidean distance between centroids
@@ -336,7 +338,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
 
         if distance > 1.3:
             print("Classes are well separated! :)")
-            if kl_divergence[0] < 0.1 and kl_divergence[1] < 0.1:
+            if kl_divergence[0] < 0.1 and kl_divergence[1] < 0.1: 
                 print("Latent Space is Gaussian-distributed!")
                 if epoch >= 99:
                     break
