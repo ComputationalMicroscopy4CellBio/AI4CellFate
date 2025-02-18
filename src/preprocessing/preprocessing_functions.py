@@ -240,9 +240,14 @@ class PreProcess:
 def process_track_data(track):
 
     # Taking only the features we want
+    # desired_features = [
+    # "unique_track_id", "xpos", "ypos", "tpos", "cell_av_FRET_norm",
+    # "INT_av", "Area", "Aspect_Ratio", "mitosis_time", "fate"]
+
     desired_features = [
-    "unique_track_id", "xpos", "ypos", "tpos", "cell_av_FRET_norm",
-    "INT_av", "Area", "Aspect_Ratio", "mitosis_time", "fate"]
+    "unique_track_id", "xpos", "ypos", "tpos", "cell_av_FRET_norm", "CFP_av", "YFP_av", 
+    "CFP_std", "YFP_std", "MajorAxisLength", "MinorAxisLength", "Eccentricity", "EquivDiameter", 
+    "Perimeter", "INT_av", "Area", "Aspect_Ratio", "mitosis_time", "fate"]
 
     track = track[desired_features]
     data_array = track.iloc[:].values # getting data as numpy array
@@ -294,4 +299,28 @@ def edge_indexes(image):
             indices_to_remove.append(cell_index)
 
     return indices_to_remove
+
+
+def daugther_trace_removal(matrix):
+    """
+    For each cell (row) in the matrix, sets all values in all columns to zero 
+    starting from the first zero in the 4th column (index 3).
+    
+    Args:
+        matrix (numpy.ndarray): A 3D matrix of shape (cells, time, features).
+        
+    Returns:
+        numpy.ndarray: Processed matrix with zeroed values from the first zero onward in the 4th column.
+    """
+    processed_matrix = matrix.copy()
+    
+    for cell_idx, cell in enumerate(processed_matrix):
+        # Find the first zero in the 4th column
+        first_zero_index = np.argmax(cell[:, 4] == 0) if np.any(cell[:, 4] == 0) else None
+        
+        # If a zero is found, set all values from that time point onward to zero
+        if first_zero_index is not None:
+            processed_matrix[cell_idx, first_zero_index:, :] = 0
+    
+    return processed_matrix
 
