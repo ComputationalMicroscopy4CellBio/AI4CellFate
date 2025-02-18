@@ -445,3 +445,21 @@ def center_cells(images):
 
     return centered_images
 
+def normalize_channels(cell_images):
+    """
+    Normalize donor and acceptor channels to preserve their ratio.
+    
+    Parameters:
+    - cell_images (numpy array): Array of shape (cell, channel, height, width).
+    
+    Returns:
+    - normalized_images (numpy array): Normalized array of the same shape.
+    """
+    # Find the absolute maximum value across all cells and channels
+    absolute_max = np.max(cell_images)
+    
+    # Normalize each channel by the same absolute maximum
+    normalized_images = cell_images / absolute_max
+    
+    return normalized_images
+
