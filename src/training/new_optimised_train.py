@@ -11,6 +11,8 @@ from .loss_functions import *
 from scipy.spatial.distance import euclidean
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import KMeans
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
 
 def train_lambdas_autoencoder(config, x_train, encoder=None, decoder=None, discriminator=None, epochs=5):
     # Set random seeds for reproducibility
@@ -336,12 +338,48 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
         distance = euclidean(centroid_class_0, centroid_class_1)
         kl_divergence = calculate_kl_divergence(z_imgs_train)
 
-        if distance > 1.3:
-            print("Classes are well separated! :)")
-            if kl_divergence[0] < 0.1 and kl_divergence[1] < 0.1: 
-                print("Latent Space is Gaussian-distributed!")
+        if kl_divergence[0] < 0.1 and kl_divergence[1] < 0.1: 
+            print("Latent Space is Gaussian-distributed!")
+            print("Eucledian distance:", distance)
+
+            # Compute CLASSIFICATION ACCURACY
+            classifier = mlp_classifier(latent_dim=config['latent_dim']) #[:, [3, 8]] 
+
+            # Train the classifier
+            classifier.compile(loss='sparse_categorical_crossentropy', optimizer= tf.keras.optimizers.Adam(learning_rate=config['learning_rate']), metrics=['accuracy'])
+            classifier.summary()
+
+            x_val, x_test_, y_val, y_test_ = train_test_split(encoder.predict(x_test), y_test, test_size=0.5, random_state=42) # 42 random state
+
+            history = classifier.fit(encoder.predict(x_train), y_train, batch_size=config['batch_size'], epochs=50, validation_data=(x_val, y_val)) # 
+
+            num_classes = len(np.unique(y_train))
+            y_pred = classifier.predict(x_test_)
+            # y_pred_classes = np.argmax(y_pred, axis=1)
+
+            threshold = 0.5
+            y_pred_classes = np.zeros_like(y_pred[:, 1])  # Initialize as class 0
+            y_pred_classes[y_pred[:, 1] > threshold] = 1  
+
+            # Calculate confusion matrix
+            cm = confusion_matrix(y_test_, y_pred_classes)
+
+            class_sums = cm.sum(axis=1, keepdims=True)
+            conf_matrix_normalized = cm / class_sums
+            mean_diagonal = np.mean(np.diag(conf_matrix_normalized))
+            precison = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
+            print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}")
+
+            if mean_diagonal > 0.65 and precison >= 0.7:
+                print("Classification accuracy is good! :)")
                 if epoch >= 99:
                     break
+
+        # if distance > 1.3:
+        #     print("Classes are well separated! :)")
+
+        #         if epoch >= 94:
+        #             break
             
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
