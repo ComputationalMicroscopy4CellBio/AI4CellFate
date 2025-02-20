@@ -377,7 +377,6 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
 
         # if distance > 1.3:
         #     print("Classes are well separated! :)")
-
         #         if epoch >= 94:
         #             break
             

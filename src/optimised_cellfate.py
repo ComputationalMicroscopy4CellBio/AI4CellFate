@@ -13,6 +13,10 @@ def load_data():
     x_test = np.load('./data/centered_x_test.npy')
     y_train = np.load('./data/train_labels.npy')
     y_test = np.load('./data/test_labels.npy')
+    # x_train = np.load('/Users/inescunha/Documents/GitHub/CellFate/data/images/stretched_x_train.npy')
+    # y_train = np.load('/Users/inescunha/Documents/GitHub/CellFate/data/labels/train_labels_augmented.npy')
+    # x_test = np.load('/Users/inescunha/Documents/GitHub/CellFate/data/images/stretched_x_test.npy')
+    # y_test = np.load('/Users/inescunha/Documents/GitHub/CellFate/data/labels/test_labels.npy')
     return x_train, x_test, y_train, y_test
 
 def evaluate_model(encoder, decoder, x_train, y_train, output_dir, classifier=None, x_test=None, y_test=None, full_evaluation=False):
