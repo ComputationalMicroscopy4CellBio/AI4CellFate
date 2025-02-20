@@ -412,10 +412,10 @@ def center_cells(images):
     Centers each cell in the middle of a 20x20 field-of-view.
     
     Args:
-        images: NumPy array of shape (num_cells, 20, 20), where each cell is a binary or intensity image.
+        images: NumPy array of shape (num_cells, frame, 20, 20), where each cell is a binary or intensity image.
 
     Returns:
-        Centered images of the same shape (num_cells, 20, 20).
+        Centered images of the same shape (num_cells, frame, 20, 20).
     """
     num_cells, frame, height, width = images.shape
     centered_images = np.zeros_like(images)
