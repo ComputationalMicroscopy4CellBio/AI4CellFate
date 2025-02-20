@@ -7,6 +7,7 @@ from ..config import CONFIG
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
 from ..evaluation.evaluate import Evaluation
+from ..utils import *
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Training Configuration')
@@ -157,7 +158,7 @@ def train_autoencoder(config, x_train, save_loss_plot=True, save_model_weights=T
         'adversarial_losses': adversarial_losses
     }
 
-def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_loss_plot=True, save_model_weights=True, save_every_epoch=True):
+def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_loss_plot=True, save_model_weights=True, save_every_epoch=False):
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -179,7 +180,9 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
     # Initialize the evaluation class
-    evaluation = Evaluation(output_dir="./results/evaluation")
+    #evaluation = Evaluation(output_dir="./results/evaluation")
+
+    lambda_contra = 0.1
 
     for epoch in range(config['epochs']): 
         epoch_reconstruction_losses, epoch_adversarial_losses, epoch_cov_losses = [], [], []
@@ -190,7 +193,7 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
-                z_imgs, z_score = encoder(image_batch, training=True)
+                z_imgs = encoder(image_batch, training=True)
                 recon_imgs = decoder(z_imgs, training=True)
 
                 # Reconstruction loss
@@ -202,7 +205,7 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
 
                 # Covariance loss
                 cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
-                cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss
+                cov_loss = off_diag_loss#0.5 * diag_cov_mean + 0.5 * z_std_loss
 
                 # Total autoencoder loss
                 ae_loss = config['lambda_recon'] * recon_loss + config['lambda_adv'] * adv_loss + config['lambda_cov'] * cov_loss
@@ -250,13 +253,13 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
               f"Covariance loss: {avg_cov_loss:.4f}")
 
         # Save visualizations every 10 epochs
-        if save_every_epoch and (epoch + 1) % 10 == 0:
-            epoch_dir = os.path.join(evaluation.output_dir, f"epoch_{epoch + 1}")
-            os.makedirs(epoch_dir, exist_ok=True)
-            all_z_imgs = encoder.predict(x_train)[0]
-            evaluation.reconstruction_images(image_batch, recon_imgs, epoch + 1, n=10)
-            evaluation.plot_cov_matrix(cov_loss_terms(all_z_imgs)[0], epoch + 1)
-            evaluation.visualize_latent_space(all_z_imgs, y_train, epoch + 1)
+        # if save_every_epoch and (epoch + 1) % 10 == 0:
+        #     epoch_dir = os.path.join(evaluation.output_dir, f"epoch_{epoch + 1}")
+        #     os.makedirs(epoch_dir, exist_ok=True)
+        #     all_z_imgs = encoder.predict(x_train)[0]
+        #     evaluation.reconstruction_images(image_batch, recon_imgs, epoch + 1, n=10)
+        #     evaluation.plot_cov_matrix(cov_loss_terms(all_z_imgs)[0], epoch + 1)
+        #     evaluation.visualize_latent_space(all_z_imgs, y_train, epoch + 1)
 
     # Save final loss plot
     if save_loss_plot:
@@ -266,20 +269,8 @@ def train_cov(config, encoder, decoder, discriminator, x_train, y_train, save_lo
     # Save model weights
     if save_model_weights:
         print("Saving model weights...")
-        output_dir = "./results/models"
-        os.makedirs(output_dir, exist_ok=True)
+        save_model_weights_to_disk(encoder, decoder, discriminator, output_dir="./results/models/autoencoder_cov")
 
-        encoder_weights_path = os.path.join(output_dir, "encoder.weights.h5")
-        decoder_weights_path = os.path.join(output_dir, "decoder.weights.h5")
-        discriminator_weights_path = os.path.join(output_dir, "discriminator.weights.h5")
-
-        encoder.save_weights(encoder_weights_path)
-        decoder.save_weights(decoder_weights_path)
-        discriminator.save_weights(discriminator_weights_path)
-
-        print(f"Encoder weights saved to {encoder_weights_path}")
-        print(f"Decoder weights saved to {decoder_weights_path}")
-        print(f"Discriminator weights saved to {discriminator_weights_path}")
 
     return {
         'encoder': encoder,
@@ -329,7 +320,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
-                z_imgs, z_score = encoder(image_batch, training=True)
+                z_imgs = encoder(image_batch, training=True)
                 recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
 
                 # Reconstruction loss
