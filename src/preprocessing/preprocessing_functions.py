@@ -484,3 +484,98 @@ def normalize_images_per_frame(cell_images):
         normalized_images[:,j] = cell_images[:,j] / absolute_max
         
     return normalized_images
+
+def augment_dataset(cell_images, labels, augmentations, fate_0_label=0, fate_1_label=1):
+    
+    # Separate fate 0 and fate 1 in the training set
+    fate_0_images = cell_images[labels == fate_0_label]
+    fate_1_images = cell_images[labels == fate_1_label]
+    
+    # Augment both classes
+    augmented_fate_0 = [augmentations(image) for image in fate_0_images]
+    augmented_fate_0 = np.concatenate(augmented_fate_0, axis=0)
+    
+    augmented_fate_1 = [augmentations(image) for image in fate_1_images]
+    augmented_fate_1 = np.concatenate(augmented_fate_1, axis=0)
+    
+    # Combine augmented data with originals
+    fate_0_combined = np.concatenate([fate_0_images, augmented_fate_0], axis=0)
+    fate_1_combined = np.concatenate([fate_1_images, augmented_fate_1], axis=0)
+    
+    # Balance fate 0 by random sampling
+    target_count = len(fate_1_combined)
+    if len(fate_0_combined) >= target_count:
+        # Randomly sample without replacement if enough samples
+        balanced_fate_0 = fate_0_combined[np.random.choice(
+            len(fate_0_combined), size=target_count, replace=False
+        )]
+    else:
+        # Randomly sample with replacement if not enough samples
+        balanced_fate_0 = fate_0_combined[np.random.choice(
+            len(fate_0_combined), size=target_count, replace=True
+        )]
+    
+    # Combine balanced datasets
+    final_images = np.concatenate([balanced_fate_0, fate_1_combined], axis=0)
+    final_labels = np.array([fate_0_label] * len(balanced_fate_0) +
+                                   [fate_1_label] * len(fate_1_combined))
+    
+    # Shuffle the training data
+    shuffle_indexes = np.random.permutation(len(final_labels))
+    final_images = final_images[shuffle_indexes]
+    final_labels = final_labels[shuffle_indexes]
+    
+    return final_images, final_labels
+
+# Example augmentation function
+def augmentations(image):
+    augmented = [
+        np.flip(image, axis=-1),  # Flip horizontally
+        np.flip(image, axis=-2),  # Flip vertically
+        np.rot90(image, k=1, axes=(-2, -1)),  # Rotate 90 degrees
+        np.rot90(image, k=2, axes=(-2, -1)),  # Rotate 180 degrees
+        np.rot90(image, k=3, axes=(-2, -1))  # Rotate 270 degrees
+    ]
+    return np.array(augmented)
+
+def stretch_intensities_global(train_images, test_images, epsilon=0.001):
+    """
+    Stretch the intensities of train_images and test_images globally using the same min and max.
+    
+    Args:
+        train_images (ndarray): Training image data
+        test_images (ndarray): Testing image data
+        epsilon (float): Value to prevent division by zero
+
+    Returns:
+        scaled_train_images (ndarray): Scaled training images
+        scaled_test_images (ndarray): Scaled testing images
+    """
+    # Combine the datasets to compute global min and max
+    cells, frames, height, width = train_images.shape
+    
+    scaled_train_images = np.empty(train_images.shape)
+    scaled_test_images = np.empty(test_images.shape)
+
+    for i in range(frames):
+        combined_images = np.concatenate([train_images[:, i][train_images[:, i] > 0], test_images[:, i][test_images[:, i] > 0]])
+        global_min = np.min(combined_images)
+        global_max = np.max(combined_images)
+
+        if global_max > global_min:
+
+            scaled_train_images[:,i] = (train_images[:,i] - global_min) / (global_max - global_min)
+            scaled_train_images[:,i] = scaled_train_images[:,i] * (1 - epsilon) + epsilon
+            scaled_train_images[:,i][train_images[:,i] == 0] = 0  # Preserve zero values (background)
+
+            scaled_test_images[:,i] = (test_images[:,i] - global_min) / (global_max - global_min)
+            scaled_test_images[:,i] = scaled_test_images[:,i] * (1 - epsilon) + epsilon
+            scaled_test_images[:,i][test_images[:,i] == 0] = 0  # Preserve zero values (background)
+
+        else:
+            # If global_max == global_min, leave unchanged
+            scaled_train_images[:,i] = train_images[:,i]
+            scaled_test_images[:,i] = test_images[:,i]
+
+    return scaled_train_images, scaled_test_images
+
