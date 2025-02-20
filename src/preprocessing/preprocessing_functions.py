@@ -465,3 +465,22 @@ def normalize_channels(cell_images):
     
     return normalized_images
 
+def normalize_images_per_frame(cell_images):
+    """
+    Normalize donor and acceptor channels to preserve their ratio in each frame.
+    
+    Parameters:
+    - cell_images (numpy array): Array of shape (cell, time, height, width).
+    
+    Returns:
+    - normalized_images (numpy array): Normalized array of the same shape.
+    """
+    # Find the absolute maximum value across all cells and channels
+    cell, frame, height, width = cell_images.shape
+    normalized_images = np.zeros_like(cell_images)
+
+    for j in range(frame):
+        absolute_max = np.max(cell_images[:,j])
+        normalized_images[:,j] = cell_images[:,j] / absolute_max
+        
+    return normalized_images
