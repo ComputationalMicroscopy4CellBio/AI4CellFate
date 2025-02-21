@@ -301,35 +301,13 @@ def edge_indexes(image):
     return indices_to_remove
 
 
-def daugther_trace_removal(matrix):
-    """
-    For each cell (row) in the matrix, sets all values in all columns to zero 
-    starting from the first zero in the 4th column (index 3).
-    
-    Args:
-        matrix (numpy.ndarray): A 3D matrix of shape (cells, time, features).
-        
-    Returns:
-        numpy.ndarray: Processed matrix with zeroed values from the first zero onward in the 4th column.
-    """
-    processed_matrix = matrix.copy()
-    
-    for cell_idx, cell in enumerate(processed_matrix):
-        # Find the first zero in the 4th column
-        first_zero_index = np.argmax(cell[:, 4] == 0) if np.any(cell[:, 4] == 0) else None
-        
-        # If a zero is found, set all values from that time point onward to zero
-        if first_zero_index is not None:
-            processed_matrix[cell_idx, first_zero_index:, :] = 0
-    
-    return processed_matrix
-
+import numpy as np
 
 def daughter_trace_removal(tabular_data, image_data):
     """
     Removes information from daughter cells in both tabular and image data.
     
-    - For each cell (row) in tabular_data, it finds the first zero in column 4.
+    - For each cell (row) in tabular_data, it finds the first zero in column 4, **ignoring the first time point**.
     - From that time point onward, it sets all values in that row to zero.
     - The same index is used to set corresponding images in image_data to zero.
 
@@ -338,14 +316,15 @@ def daughter_trace_removal(tabular_data, image_data):
         image_data (numpy.ndarray): A 5D matrix of shape (cells, time, channels, height, width).
 
     Returns:
-        tuple: Processed (tabular_data, image_data) with zeroed-out values from the first zero index onward.
+        tuple: Processed (tabular_data, image_data) with zeroed-out values from the determined index onward.
     """
     processed_tabular = tabular_data.copy()
     processed_images = image_data.copy()
     
     for cell_idx, cell in enumerate(processed_tabular):
-        # Find the first zero in the 4th column (index 3)
-        first_zero_index = np.argmax(cell[:, 4] == 0) if np.any(cell[:, 4] == 0) else None
+        # Ignore the first time point and find the first zero in the 4th column (index 3)
+        feature_values = cell[1:, 4]  # Start from the second time point
+        first_zero_index = np.argmax(feature_values == 0) + 1 if np.any(feature_values == 0) else None  # Shift by 1
         
         # If a zero is found, zero out both tabular and image data from that time point onward
         if first_zero_index is not None:
@@ -353,6 +332,8 @@ def daughter_trace_removal(tabular_data, image_data):
             processed_images[cell_idx, first_zero_index:, :, :, :] = 0  # Zeroing corresponding images
     
     return processed_tabular, processed_images
+
+
 
 
 import numpy as np
