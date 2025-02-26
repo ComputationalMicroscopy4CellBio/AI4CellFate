@@ -7,16 +7,21 @@ from src.utils import *
 # Function to load data
 def load_data():
     """Load training and testing data."""
-    #x_train = np.load('./data/stretched_x_train.npy')  # TODO: replace with data loader later
-    #x_test = np.load('./data/stretched_x_test.npy')
-    x_train = np.load('./data/centered_x_train.npy')
-    x_test = np.load('./data/centered_x_test.npy')
-    y_train = np.load('./data/train_labels.npy')
-    y_test = np.load('./data/test_labels.npy')
-    # x_train = np.load('/Users/inescunha/Documents/GitHub/CellFate/data/images/stretched_x_train.npy')
-    # y_train = np.load('/Users/inescunha/Documents/GitHub/CellFate/data/labels/train_labels_augmented.npy')
-    # x_test = np.load('/Users/inescunha/Documents/GitHub/CellFate/data/images/stretched_x_test.npy')
-    # y_test = np.load('/Users/inescunha/Documents/GitHub/CellFate/data/labels/test_labels.npy')
+    # x_train = np.load('./data/centered_x_train.npy')
+    # x_test = np.load('./data/centered_x_test.npy')
+    # y_train = np.load('./data/train_labels.npy')
+    # y_test = np.load('./data/test_labels.npy')
+
+    # x_train = np.load('./data/images/time_norm_train_images.npy')[:,0,:,:]
+    # y_train = np.load('./data/labels/train_labels_augmented.npy')
+    # x_test = np.load('./data/images/time_norm_test_images.npy')[:,0,:,:]
+    # y_test = np.load('./data/labels/test_labels.npy')
+
+    x_train = np.load('./data/images/train_images_augmented4_stretched.npy')[:,0,:,:] # dont use the stretched
+    y_train = np.load('./data/labels/train_labels_augmented4.npy')
+    x_test = np.load('./data/images/test_images_augmented4_stretched.npy')[:,0,:,:]
+    y_test = np.load('./data/labels/test_labels.npy')
+    
     return x_train, x_test, y_train, y_test
 
 def evaluate_model(encoder, decoder, x_train, y_train, output_dir, classifier=None, x_test=None, y_test=None, full_evaluation=False):
@@ -99,7 +104,7 @@ def main():
     }
  
     #Train the lambda optimisation autoencoder + cov
-    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test, epochs=150) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
+    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test, epochs=50) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
     discriminator = lambda_ae_cov_results['discriminator']
@@ -108,6 +113,7 @@ def main():
     cov_losses = lambda_ae_cov_results['cov_loss']
     contra_losses = lambda_ae_cov_results['contra_loss']
 
+    print(lambda_ae_cov_results['good_conditions_stop'])
     save_model_weights_to_disk(encoder, decoder, discriminator, output_dir="./results/models/autoencoder_cov")
     # Train the autoencoder starting from the optimal lambdas
     #scaled_ae_cov_results = train_cov_scaled(config, x_train, y_train, reconstruction_losses, adversarial_losses, cov_losses, contra_losses, encoder, decoder, discriminator)

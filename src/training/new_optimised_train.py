@@ -258,6 +258,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
     lambda_cov = 0.0001
     lambda_contra = 8
     save_loss_plot = True
+    good_conditions_stop = []
 
     # Placeholder for storing losses
     reconstruction_losses = []
@@ -338,7 +339,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
         distance = euclidean(centroid_class_0, centroid_class_1)
         kl_divergence = calculate_kl_divergence(z_imgs_train)
 
-        if kl_divergence[0] < 0.1 and kl_divergence[1] < 0.1: 
+        if kl_divergence[0] < 0.3 and kl_divergence[1] < 0.3: 
             print("Latent Space is Gaussian-distributed!")
             print("Eucledian distance:", distance)
 
@@ -349,9 +350,9 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
             classifier.compile(loss='sparse_categorical_crossentropy', optimizer= tf.keras.optimizers.Adam(learning_rate=config['learning_rate']), metrics=['accuracy'])
             classifier.summary()
 
-            x_val, x_test_, y_val, y_test_ = train_test_split(encoder.predict(x_test), y_test, test_size=0.5, random_state=42) # 42 random state
+            x_val, x_test_, y_val, y_test_ = train_test_split(z_imgs_test, y_test, test_size=0.5, random_state=42) # 42 random state
 
-            history = classifier.fit(encoder.predict(x_train), y_train, batch_size=config['batch_size'], epochs=50, validation_data=(x_val, y_val)) # 
+            history = classifier.fit(z_imgs_train, y_train, batch_size=config['batch_size'], epochs=50, validation_data=(x_val, y_val)) # 
 
             num_classes = len(np.unique(y_train))
             y_pred = classifier.predict(x_test_)
@@ -370,9 +371,10 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
             precison = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
             print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}")
 
-            if mean_diagonal > 0.65 and precison >= 0.7:
+            if mean_diagonal > 0.65 and precison >= 0.7 and distance > 0.9:
                 print("Classification accuracy is good! :)")
-                if epoch >= 99:
+                good_conditions_stop.append(epoch)
+                if epoch >= 10:
                     break
 
         # if distance > 1.3:
@@ -408,7 +410,8 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
         'recon_loss': reconstruction_losses,
         'adv_loss': adversarial_losses,
         'cov_loss': cov_losses,
-        'contra_loss': contra_losses
+        'contra_loss': contra_losses,
+        'good_conditions_stop': good_conditions_stop
     }
 
 def train_cov_scaled(config, x_train, y_train, reconstruction_losses=None, adversarial_losses=None, cov_losses=None, contra_losses=None, encoder=None, decoder=None, discriminator=None, save_loss_plot=True, save_model_weights=True, save_every_epoch=False):
