@@ -339,7 +339,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
         distance = euclidean(centroid_class_0, centroid_class_1)
         kl_divergence = calculate_kl_divergence(z_imgs_train)
 
-        if kl_divergence[0] < 0.3 and kl_divergence[1] < 0.3: 
+        if kl_divergence[0] < 0.2 and kl_divergence[1] < 0.2: 
             print("Latent Space is Gaussian-distributed!")
             print("Eucledian distance:", distance)
 
@@ -374,7 +374,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
             if mean_diagonal > 0.65 and precison >= 0.7 and distance > 0.9:
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
-                if epoch >= 10:
+                if epoch >= 10: #epoch >= 25
                     break
 
         # if distance > 1.3:

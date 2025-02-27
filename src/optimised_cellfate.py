@@ -12,15 +12,15 @@ def load_data():
     # y_train = np.load('./data/train_labels.npy')
     # y_test = np.load('./data/test_labels.npy')
 
-    # x_train = np.load('./data/images/time_norm_train_images.npy')[:,0,:,:]
-    # y_train = np.load('./data/labels/train_labels_augmented.npy')
-    # x_test = np.load('./data/images/time_norm_test_images.npy')[:,0,:,:]
-    # y_test = np.load('./data/labels/test_labels.npy')
-
-    x_train = np.load('./data/images/train_images_augmented4_stretched.npy')[:,0,:,:] # dont use the stretched
+    x_train = np.load('./data/images/time_norm_train_images.npy')[:,1,:,:]
     y_train = np.load('./data/labels/train_labels_augmented4.npy')
-    x_test = np.load('./data/images/test_images_augmented4_stretched.npy')[:,0,:,:]
+    x_test = np.load('./data/images/time_norm_test_images.npy')[:,1,:,:]
     y_test = np.load('./data/labels/test_labels.npy')
+
+    # x_train = np.load('./data/images/train_images_augmented4_stretched.npy')[:,0,:,:] # dont use the stretched
+    # y_train = np.load('./data/labels/train_labels_augmented4.npy')
+    # x_test = np.load('./data/images/test_images_augmented4_stretched.npy')[:,0,:,:]
+    # y_test = np.load('./data/labels/test_labels.npy')
     
     return x_train, x_test, y_train, y_test
 
@@ -104,7 +104,7 @@ def main():
     }
  
     #Train the lambda optimisation autoencoder + cov
-    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test, epochs=50) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
+    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test, epochs=100) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
     discriminator = lambda_ae_cov_results['discriminator']
