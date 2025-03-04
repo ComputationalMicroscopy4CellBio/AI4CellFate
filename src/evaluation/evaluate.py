@@ -41,6 +41,81 @@ def calculate_kl_divergence(latent_samples, num_bins=100):
 
         return kl_divergences
 
+def reconstruction_images(image_batch, recon_imgs, n=10):
+        """Visualize and save original and reconstructed images for a specific epoch."""
+        plt.figure(figsize=(20, 4))
+        for i in range(n):
+            # Display original
+            ax = plt.subplot(2, n, i + 1)
+            plt.imshow(image_batch[i][:, :], cmap="gray", vmin=0.0, vmax=image_batch.max())
+            plt.title("Original")
+            plt.axis("off")
+            plt.colorbar()
+
+            # Display reconstruction
+            ax = plt.subplot(2, n, i + n + 1)
+            plt.imshow(recon_imgs[i][:, :], cmap="gray", vmin=0.0, vmax=image_batch.max())
+            plt.title("Reconstructed")
+            plt.axis("off")
+            plt.colorbar()
+        plt.tight_layout()
+        plt.show()
+
+def plot_confusion_matrix(y_test, y_pred, num_classes):
+    """Plot and save the confusion matrix."""
+    cm = confusion_matrix(y_test, np.argmax(y_pred, axis=1))
+    class_sums = cm.sum(axis=1, keepdims=True)
+    conf_matrix_normalized = cm / class_sums
+
+    # Add actual values to the confusion matrix
+    plt.figure(figsize=(8, 6))
+    plt.imshow(conf_matrix_normalized, interpolation='nearest', cmap=plt.cm.Blues, vmin=0, vmax=1)
+    plt.title('Confusion Matrix')
+    plt.colorbar()
+    tick_marks = np.arange(num_classes)
+    plt.xticks(tick_marks, range(num_classes))
+    plt.yticks(tick_marks, range(num_classes))
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+
+    # Annotate the matrix
+    for i in range(num_classes):
+        for j in range(num_classes):
+            plt.text(j, i, f"{conf_matrix_normalized[i, j]}", ha="center", va="center", color="black")
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_cov_matrix(cov_matrix):
+    """Visualize and save the covariance matrix of latent variables for a specific epoch."""
+    normalized_cov_matrix = (cov_matrix - np.min(cov_matrix)) / (np.max(cov_matrix) - np.min(cov_matrix))
+    plt.imshow(normalized_cov_matrix, cmap="viridis", vmin=0.1, vmax=1.0)
+    plt.colorbar()
+    plt.title("Normalized Covariance Matrix")
+    plt.show()
+
+def visualize_latent_space(latent_space, y_train):
+    """Visualize and save latent space features for a specific epoch."""
+    cor_vals = [np.corrcoef(np.eye(2)[y_train][:, 0], latent_space[:, i])[0, 1] for i in range(latent_space.shape[1])]
+    cor_vals = np.array(cor_vals)
+    feat_0, feat_1 = np.argsort(np.abs(cor_vals))[-2:]  # Find top 2 correlated features
+
+    print(f"Top correlated features: {feat_0}, {feat_1}")
+
+    # Scatter plot
+    scatter = plt.scatter(latent_space[:, feat_0], latent_space[:, feat_1], c=y_train, cmap='viridis', alpha=0.7)
+    plt.xlabel(f"Latent Variable {feat_0}")
+    plt.ylabel(f"Latent Variable {feat_1}")
+    plt.title("Latent Space")
+    plt.grid(True)
+
+    # Add legend
+    handles, _ = scatter.legend_elements()
+    plt.legend(handles, ['Fate 0', 'Fate 1'], title="Classes", loc="lower right")
+
+    plt.show()
+
+
 class Evaluation:
     def __init__(self, output_dir):
         self.output_dir = output_dir

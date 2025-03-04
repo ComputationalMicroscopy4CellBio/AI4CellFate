@@ -296,7 +296,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
     }
 
 #### ADD DOCUMENTATION : FIRST TRAIN JUST AUTOENCODER, THEN TRAIN CELLFATE: AUTOENCODER + COVARIANCE + CONTRASTIVE ####
-def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator=None, epochs=5):
+def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator=None):
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
@@ -328,7 +328,7 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
     real_y = 0.9 * np.ones((config['batch_size'], 1))
     fake_y = 0.1 * np.ones((config['batch_size'], 1))
 
-    for epoch in range(epochs):
+    for epoch in range(config['epochs']):
         epoch_reconstruction_losses, epoch_adversarial_losses = [], []
 
         for n_batch in range(len(x_train) // config['batch_size']):
@@ -386,7 +386,7 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
         adversarial_losses.append(avg_adv_loss)
 
         # Print and save results at the end of each epoch
-        print(f"Epoch {epoch + 1}/{epochs}: "
+        print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
 
