@@ -1,7 +1,6 @@
 import numpy as np
 from src.training.new_optimised_train import *
 from src.evaluation.evaluate import Evaluation
-from src.training.train import *
 from src.utils import *
 
 # Function to load data
@@ -12,17 +11,21 @@ def load_data():
     # y_train = np.load('./data/train_labels.npy')
     # y_test = np.load('./data/test_labels.npy')
 
-    x_train = np.load('./data/images/time_norm_train_images.npy')[:,1,:,:]
+    x_train = np.load('./data/images/time_norm_train_images.npy')[:,0,:,:]
     y_train = np.load('./data/labels/train_labels_augmented4.npy')
-    x_test = np.load('./data/images/time_norm_test_images.npy')[:,1,:,:]
+    x_test = np.load('./data/images/time_norm_test_images.npy')[:,0,:,:]
     y_test = np.load('./data/labels/test_labels.npy')
+
+    # x_train_smaller = np.load('./data/images/time_norm_smaller_train_images10.npy')[:,0,:,:]
+    # y_train_smaller = np.load('./data/labels/smaller_train_labels_augmented10.npy')
+    # x_test = np.load('./data/images/stretched_x_test_from_smaller10.npy')[:,0,:,:]
 
     # x_train = np.load('./data/images/train_images_augmented4_stretched.npy')[:,0,:,:] # dont use the stretched
     # y_train = np.load('./data/labels/train_labels_augmented4.npy')
     # x_test = np.load('./data/images/test_images_augmented4_stretched.npy')[:,0,:,:]
     # y_test = np.load('./data/labels/test_labels.npy')
     
-    return x_train, x_test, y_train, y_test
+    return x_train, x_test, y_train, y_test#, x_train_smaller, y_train_smaller
 
 def evaluate_model(encoder, decoder, x_train, y_train, output_dir, classifier=None, x_test=None, y_test=None, full_evaluation=False):
     """Evaluate the trained model."""
@@ -55,20 +58,24 @@ def main():
     """Main function with the full workflow of the CellFate project."""
     
     # Load data
-    x_train, x_test, y_train, y_test = load_data()
+    x_train, x_test, y_train, y_test = load_data() #, x_train_smaller, y_train_smaller
 
     # Config for training
+
     config = {
         'batch_size': 30,
-        'epochs': 10,
+        'epochs': 15,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 2,
         'GaussianNoise_std': 0.003,
+        'lambda_recon': 5,
+        'lambda_adv': 1,
     }
 
    #Train the lambda optimisation autoencoder
-    lambda_autoencoder_results = train_lambdas_autoencoder(config, x_train, epochs=15)
+    #lambda_autoencoder_results = train_lambdas_autoencoder(config, x_train, epochs=15)
+    lambda_autoencoder_results = train_autoencoder(config, x_train)
     encoder = lambda_autoencoder_results['encoder']
     decoder = lambda_autoencoder_results['decoder']
     discriminator = lambda_autoencoder_results['discriminator']
@@ -96,15 +103,19 @@ def main():
 
     config = {
         'batch_size': 30,
-        'epochs': 30,
+        'epochs': 100,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 2,
         'GaussianNoise_std': 0.003,
+        'lambda_recon': 6,
+        'lambda_adv': 4, #4
+        'lambda_cov': 0.0001,
+        'lambda_contra': 8, #8
     }
  
     #Train the lambda optimisation autoencoder + cov
-    lambda_ae_cov_results = train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test, epochs=100) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
+    lambda_ae_cov_results = train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test) #lambda_recon=scaled_autoencoder_results['lambda_recon'], lambda_adv=scaled_autoencoder_results['lambda_adv']
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
     discriminator = lambda_ae_cov_results['discriminator']

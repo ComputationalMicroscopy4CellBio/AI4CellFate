@@ -503,7 +503,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         # Compute Euclidean distance between centroids
         distance = euclidean(centroid_class_0, centroid_class_1)
         kl_divergence = calculate_kl_divergence(z_imgs_train)
-
+        print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
         if kl_divergence[0] < 0.2 and kl_divergence[1] < 0.2: 
             print("Latent Space is Gaussian-distributed!")
             print("Eucledian distance:", distance)
