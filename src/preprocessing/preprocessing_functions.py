@@ -466,58 +466,88 @@ def normalize_images_per_frame(cell_images):
         
     return normalized_images
 
-def augment_dataset(cell_images, labels, augmentations, fate_0_label=0, fate_1_label=1):
-    
-    # Separate fate 0 and fate 1 in the training set
+
+def augment_dataset(cell_images, labels, augmentations, augment_times=5, fate_0_label=0, fate_1_label=1, seed=42):
+    """
+    Augments a dataset of cell movies (cells, time, height, width), balances fate 0 and fate 1,
+    and ensures reproducibility by setting a seed.
+
+    Args:
+        cell_images (numpy.ndarray): Array of shape (cells, time, height, width).
+        labels (numpy.ndarray): 1D array of labels corresponding to cell fates.
+        augmentations (function): Function that applies augmentations to a movie sequence.
+        augment_times (int): Number of unique augmented copies per movie.
+        fate_0_label (int): Label for fate 0 cells.
+        fate_1_label (int): Label for fate 1 cells.
+        seed (int): Random seed for reproducibility.
+
+    Returns:
+        tuple: Augmented and balanced (final_images, final_labels).
+    """
+    np.random.seed(seed)  # Ensure reproducibility
+
+    # Separate fate 0 and fate 1 in the dataset
     fate_0_images = cell_images[labels == fate_0_label]
     fate_1_images = cell_images[labels == fate_1_label]
-    
-    # Augment both classes
-    augmented_fate_0 = [augmentations(image) for image in fate_0_images]
-    augmented_fate_0 = np.concatenate(augmented_fate_0, axis=0)
-    
-    augmented_fate_1 = [augmentations(image) for image in fate_1_images]
-    augmented_fate_1 = np.concatenate(augmented_fate_1, axis=0)
-    
-    # Combine augmented data with originals
+
+    # Generate multiple unique augmentations per movie
+    augmented_fate_0 = np.concatenate([augmentations(movie, augment_times) for movie in fate_0_images], axis=0)
+    augmented_fate_1 = np.concatenate([augmentations(movie, augment_times) for movie in fate_1_images], axis=0)
+
+    # Combine original and augmented data
     fate_0_combined = np.concatenate([fate_0_images, augmented_fate_0], axis=0)
     fate_1_combined = np.concatenate([fate_1_images, augmented_fate_1], axis=0)
-    
-    # Balance fate 0 by random sampling
+
+    # Balance fate 0 to match fate 1 count
     target_count = len(fate_1_combined)
-    if len(fate_0_combined) >= target_count:
-        # Randomly sample without replacement if enough samples
-        balanced_fate_0 = fate_0_combined[np.random.choice(
-            len(fate_0_combined), size=target_count, replace=False
-        )]
+    if len(fate_0_combined) < target_count:
+        print("did this happen")
+        extra_fate_0 = np.random.choice(len(fate_0_combined), size=target_count - len(fate_0_combined), replace=True)
+        balanced_fate_0 = np.concatenate([fate_0_combined, fate_0_combined[extra_fate_0]], axis=0)
     else:
-        # Randomly sample with replacement if not enough samples
-        balanced_fate_0 = fate_0_combined[np.random.choice(
-            len(fate_0_combined), size=target_count, replace=True
-        )]
-    
-    # Combine balanced datasets
+        balanced_fate_0 = fate_0_combined[np.random.choice(len(fate_0_combined), size=target_count, replace=False)]
+
+    # Merge datasets
     final_images = np.concatenate([balanced_fate_0, fate_1_combined], axis=0)
-    final_labels = np.array([fate_0_label] * len(balanced_fate_0) +
-                                   [fate_1_label] * len(fate_1_combined))
-    
-    # Shuffle the training data
+    final_labels = np.array([fate_0_label] * len(balanced_fate_0) + [fate_1_label] * len(fate_1_combined))
+
+    # Shuffle data
     shuffle_indexes = np.random.permutation(len(final_labels))
-    final_images = final_images[shuffle_indexes]
-    final_labels = final_labels[shuffle_indexes]
-    
+    final_images, final_labels = final_images[shuffle_indexes], final_labels[shuffle_indexes]
+
     return final_images, final_labels
 
-# Example augmentation function
-def augmentations(image):
-    augmented = [
-        np.flip(image, axis=-1),  # Flip horizontally
-        np.flip(image, axis=-2),  # Flip vertically
-        np.rot90(image, k=1, axes=(-2, -1)),  # Rotate 90 degrees
-        np.rot90(image, k=2, axes=(-2, -1)),  # Rotate 180 degrees
-        np.rot90(image, k=3, axes=(-2, -1))  # Rotate 270 degrees
+
+def augmentations(movie, augment_times=4, seed=42):
+    """
+    Applies multiple **unique** augmentations to the whole movie (time-series of images).
+
+    Args:
+        movie (numpy.ndarray): Array of shape (time, height, width).
+        augment_times (int): Number of unique augmented copies to generate.
+
+    Returns:
+        numpy.ndarray: Augmented movies (augment_times, time, height, width).
+    """
+    all_augmentations = [
+        lambda x: np.flip(x, axis=-1),  # Flip horizontally
+        lambda x: np.flip(x, axis=-2),  # Flip vertically
+        lambda x: np.rot90(x, k=1, axes=(-2, -1)),  # Rotate 90 degrees
+        lambda x: np.rot90(x, k=2, axes=(-2, -1)),  # Rotate 180 degrees
+        lambda x: np.rot90(x, k=3, axes=(-2, -1))  # Rotate 270 degrees
     ]
-    return np.array(augmented)
+    
+    np.random.seed(seed)
+
+    # Select random augmentations
+    np.random.shuffle(all_augmentations)
+
+    selected_augmentations = all_augmentations[:augment_times]
+
+    # Apply selected augmentations
+    augmented_movies = [augment(movie) for augment in selected_augmentations]
+
+    return np.array(augmented_movies)
 
 def stretch_intensities_global(train_images, test_images, epsilon=0.001):
     """
