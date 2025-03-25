@@ -389,6 +389,8 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
+    
+    save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, output_dir="./results/loss_plots/autoencoder")
 
     return {
         'encoder': encoder,
