@@ -181,7 +181,7 @@ def supervised_nt_xent_loss(z, y, temperature=0.5, base_temperature=0.07):
 
 # According to the formula
 def contrastive_loss(z, y_true, tau=0.5):
-    """NT-Xent contrastive loss to enforce class separation in latent space."""
+    
     z = tf.math.l2_normalize(z, axis=1)  # Normalize latent vectors to unit norm
     
     sim_matrix = tf.matmul(z, z, transpose_b=True)  # Compute cosine similarity
