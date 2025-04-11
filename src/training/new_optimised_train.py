@@ -542,6 +542,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
                 if epoch > 50: #epoch >= 25
+                    print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 
         # Store average losses for the epoch
