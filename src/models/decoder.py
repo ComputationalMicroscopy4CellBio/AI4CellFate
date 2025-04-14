@@ -4,13 +4,46 @@ from tensorflow.keras.models import Model, Sequential
 
 
 class Decoder:
+    """
+    Decoder component of an Adversarial Autoencoder (AAE).
+    
+    This class implements the decoder part of an AAE, which is responsible for generating images
+    from latent space representations. It uses residual blocks with upsampling to progressively
+    increase the spatial dimensions while maintaining feature quality.
+    
+    Attributes:
+        latent_dim (int): Dimension of the latent space representation.
+        img_shape (tuple): Shape of the output image (height, width, channels).
+        gaussian_noise_std (float): Standard deviation for Gaussian noise added during generation.
+        model (tf.keras.Model): The built decoder model.
+    """
+    
     def __init__(self, latent_dim, img_shape, gaussian_noise_std):
+        """
+        Initialize the Decoder.
+        
+        Args:
+            latent_dim (int): Dimension of the latent space representation.
+            img_shape (tuple): Shape of the output image (height, width, channels).
+            gaussian_noise_std (float): Standard deviation for Gaussian noise added during generation.
+        """
         self.latent_dim = latent_dim
         self.img_shape = img_shape
         self.gaussian_noise_std = gaussian_noise_std
         self.model = self.build_generator()
 
     def build_generator(self):
+        """
+        Build the decoder model architecture.
+        
+        The model consists of:
+        1. Initial dense layer to expand latent representation
+        2. Two residual upsampling blocks
+        3. Final convolutional layer to produce the output image
+        
+        Returns:
+            tf.keras.Model: The built decoder model.
+        """
         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
         last_conv_shape = (5, 5, 64)
         X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
@@ -28,6 +61,23 @@ class Decoder:
         return decoder_model
 
     def res_block_up(self, layer_input, filters):
+        """
+        Create a residual upsampling block.
+        
+        This block performs:
+        1. Batch normalization and ReLU activation
+        2. Upsampling by a factor of 2
+        3. Two convolutional layers with spectral normalization
+        4. Skip connection with upsampling and 1x1 convolution
+        5. Addition of main and skip paths
+        
+        Args:
+            layer_input (tf.Tensor): Input tensor to the residual block.
+            filters (int): Number of filters in the convolutional layers.
+            
+        Returns:
+            tf.Tensor: Output tensor after applying the residual block.
+        """
         d = BatchNormalization()(layer_input)
         d = Activation('relu')(d)
         d = UpSampling2D(size=(2, 2), interpolation="nearest")(d)
@@ -41,37 +91,3 @@ class Decoder:
         d_res = SpectralNormalization(Conv2D(filters, kernel_size=1, strides=1, padding='same'))(d_res)
         d = Add()([d, d_res])
         return d
-
-# class Decoder:
-#     def __init__(self, latent_dim, img_shape, gaussian_noise_std):
-#         self.latent_dim = latent_dim
-#         self.img_shape = img_shape
-#         self.gaussian_noise_std = gaussian_noise_std
-#         self.model = self.build_generator()
-
-#     def build_generator(self):
-#         # Input layer
-#         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
-
-#         # Fully connected layer to reshape into a feature map
-#         last_conv_shape = (5, 5, 32)  # Reduced number of filters for simplicity
-#         X = Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2])(dec_input)
-#         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
-#         X = Reshape((last_conv_shape[0], last_conv_shape[1], last_conv_shape[2]))(X)
-
-#         # First Upsampling Block
-#         X = UpSampling2D(size=(2, 2), interpolation="nearest")(X)
-#         X = SpectralNormalization(Conv2D(16, kernel_size=3, padding='same', activation='relu'))(X)
-
-#         # Second Upsampling Block
-#         X = Dropout(0.3)(X)
-#         X = UpSampling2D(size=(2, 2), interpolation="nearest")(X)
-#         X = SpectralNormalization(Conv2D(16, kernel_size=3, padding='same', activation='relu'))(X)
-
-#         # Output layer with sigmoid activation to match the reconstructed image shape
-#         X = SpectralNormalization(Conv2D(self.img_shape[2], kernel_size=3, padding='same', activation='sigmoid'))(X)
-
-#         # Build and return the model
-#         decoder_model = Model(dec_input, X, name='decoder')
-
-#         return decoder_model

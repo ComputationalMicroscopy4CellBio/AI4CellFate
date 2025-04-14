@@ -2,8 +2,11 @@ from tensorflow.keras import layers, Sequential
 import tensorflow as tf
 from tensorflow.keras.regularizers import l2
 
-# A small MLP for classification from the latent space
+
 def mlp_classifier(latent_dim):
+    """
+    A small MLP for classification from the latent space
+    """
     return Sequential([
         layers.Input(shape=(latent_dim,)),
         layers.Dropout(0.3),
@@ -11,6 +14,9 @@ def mlp_classifier(latent_dim):
     ])
 
 def complex_mlp_classifier(latent_dim): 
+    """
+    A more complex MLP for classification with tabular data
+    """
     return Sequential([
         layers.Input(shape=(latent_dim,)),
         layers.BatchNormalization(),
