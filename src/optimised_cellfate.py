@@ -1,5 +1,5 @@
 import numpy as np
-from src.training.new_optimised_train import *
+from src.training.train import *
 from src.evaluation.evaluate import Evaluation
 from src.utils import *
 

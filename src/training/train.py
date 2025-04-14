@@ -12,6 +12,8 @@ from sklearn.metrics import confusion_matrix
 
 # STAGE 1: Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
 def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator=None):
+    """Train the adversarial autoencoder."""
+    
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
@@ -55,7 +57,7 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
                 z_imgs = encoder(image_batch, training=True)
-                recon_imgs = decoder(z_imgs, training=True)#[:, :, :, 0]
+                recon_imgs = decoder(z_imgs, training=True)
 
                 # Reconstruction loss
                 recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
@@ -119,7 +121,7 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
 # STAGE 2: Train AI4CellFate: Autoencoder + Covariance + Contrastive (Engineered Latent Space)
 def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_test, y_test):
     """Train the AI4CellFate model with the autoencoder, covariance, and contrastive loss."""
-    
+
     config = convert_namespace_to_dict(config)
     set_seed(config['seed'])
     rng = np.random.default_rng(config['seed'])
@@ -222,27 +224,22 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         distance = euclidean(centroid_class_0, centroid_class_1)
         kl_divergence = calculate_kl_divergence(z_imgs_train)
         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
+
         if kl_divergence[0] < 0.2 and kl_divergence[1] < 0.2: 
             print("Latent Space is Gaussian-distributed!")
             print("Eucledian distance:", distance)
 
-            # Compute CLASSIFICATION ACCURACY
-            classifier = mlp_classifier(latent_dim=config['latent_dim'])
+            # Compute classification accuracy and use it as a stopping criterion
 
             # Train the classifier
+            classifier = mlp_classifier(latent_dim=config['latent_dim'])
             classifier.compile(loss='sparse_categorical_crossentropy', optimizer= tf.keras.optimizers.Adam(learning_rate=config['learning_rate']), metrics=['accuracy'])
-            classifier.summary()
-
-            x_val, x_test_, y_val, y_test_ = train_test_split(z_imgs_test, y_test, test_size=0.5, random_state=42) # 42 random state
-
+            x_val, x_test_, y_val, y_test_ = train_test_split(z_imgs_test, y_test, test_size=0.5, random_state=42) 
             history = classifier.fit(z_imgs_train, y_train, batch_size=config['batch_size'], epochs=50, validation_data=(x_val, y_val)) # 
 
-            num_classes = len(np.unique(y_train))
             y_pred = classifier.predict(x_test_)
-            # y_pred_classes = np.argmax(y_pred, axis=1)
-
             threshold = 0.5
-            y_pred_classes = np.zeros_like(y_pred[:, 1])  # Initialize as class 0
+            y_pred_classes = np.zeros_like(y_pred[:, 1])
             y_pred_classes[y_pred[:, 1] > threshold] = 1  
 
             # Calculate confusion matrix
@@ -252,6 +249,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             conf_matrix_normalized = cm / class_sums
             mean_diagonal = np.mean(np.diag(conf_matrix_normalized))
             precison = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
+
             print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}")
 
             if mean_diagonal > 0.65 and precison >= 0.7 and distance > 0.9:
