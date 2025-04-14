@@ -1,6 +1,6 @@
 import numpy as np
 from src.training.train import *
-from src.evaluation.evaluate import Evaluation
+from src.evaluation.evaluate import evaluate_model
 from src.utils import *
 
 # Function to load data
@@ -14,25 +14,6 @@ def load_data():
     y_test = np.load('./data/labels/test_labels.npy')
     
     return x_train, x_test, y_train, y_test
-
-def evaluate_model(encoder, decoder, x_train, y_train, output_dir):
-    """Evaluate the trained model."""
-    evaluator = Evaluation(output_dir)
-    
-    z_imgs = encoder.predict(x_train)
-    recon_imgs = decoder.predict(z_imgs)
- 
-    evaluator.reconstruction_images(x_train, recon_imgs[:,:,:,0], epoch=0)
-    
-    # Visualize latent space
-    evaluator.visualize_latent_space(z_imgs, y_train, epoch=0)
-
-    # # Covariance matrix
-    # cov_matrix = cov_loss_terms(z_imgs)[0]
-    # evaluator.plot_cov_matrix(cov_matrix, epoch=0)
-    
-    # KL divergence
-    print("KL Divergences in each dimension: ", evaluator.calculate_kl_divergence(z_imgs))
 
 
 # Main function
@@ -53,7 +34,8 @@ def main():
         'lambda_adv': 1,
     }
 
-    # STAGE 1: Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
+    ##### STAGE 1 #####
+    # Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
 
     lambda_autoencoder_results = train_autoencoder(config_autoencoder, x_train)
     encoder = lambda_autoencoder_results['encoder']
@@ -76,7 +58,8 @@ def main():
         'lambda_contra': 8,
     }
  
-    # STAGE 2: Train AI4CellFate: Autoencoder + Covariance + Contrastive (Engineered Latent Space)
+    ##### STAGE 2#####
+    # Train AI4CellFate: Autoencoder + Covariance + Contrastive (Engineered Latent Space)
 
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, x_train, y_train, x_test, y_test) 
     encoder = lambda_ae_cov_results['encoder']

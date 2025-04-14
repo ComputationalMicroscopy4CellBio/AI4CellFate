@@ -253,3 +253,19 @@ class Evaluation:
             kl_divergences.append(kl_div)
 
         return kl_divergences
+
+def evaluate_model(encoder, decoder, x_train, y_train, output_dir):
+    """Evaluate the trained model."""
+    evaluator = Evaluation(output_dir)
+    
+    z_imgs = encoder.predict(x_train)
+    recon_imgs = decoder.predict(z_imgs)
+    
+    # Get reconstruction images
+    evaluator.reconstruction_images(x_train, recon_imgs[:,:,:,0], epoch=0)
+
+    # Visualize latent space
+    evaluator.visualize_latent_space(z_imgs, y_train, epoch=0)
+
+    # KL divergence
+    print("KL Divergences in each dimension: ", evaluator.calculate_kl_divergence(z_imgs))
