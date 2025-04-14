@@ -389,6 +389,8 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
         print(f"Epoch {epoch + 1}/{config['epochs']}: "
               f"Reconstruction loss: {avg_recon_loss:.4f}, "
               f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
+    
+    save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, output_dir="./results/loss_plots/autoencoder")
 
     return {
         'encoder': encoder,
@@ -540,6 +542,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
                 if epoch > 50: #epoch >= 25
+                    print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 
         # Store average losses for the epoch

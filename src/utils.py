@@ -54,6 +54,7 @@ def save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, outpu
     # Save the plot with a dpi of 300
     os.makedirs(output_dir, exist_ok=True)
     plt.savefig(f"{output_dir}/loss_plot.png", dpi=300)
+    plt.savefig(f"{output_dir}/loss_plot.eps", dpi=300)
 
     # Close the plot to avoid memory issues
     plt.close()
@@ -80,6 +81,7 @@ def save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, c
     
     # Save the plot with a dpi of 300
     os.makedirs(output_dir, exist_ok=True)
+    plt.savefig(f"{output_dir}/loss_plot.eps", dpi=300)
     plt.savefig(f"{output_dir}/loss_plot.png", dpi=300)
 
     # Close the plot to avoid memory issues
