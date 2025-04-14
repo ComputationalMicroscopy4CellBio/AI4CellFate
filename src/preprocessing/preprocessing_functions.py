@@ -4,6 +4,93 @@ import glob
 import tifffile as tiff
 from scipy.ndimage import label, find_objects
 
+
+############ TRACKS ONLY ############
+
+class PreProcess:
+    
+    def __init__(self):
+        pass
+    
+    def preprocess_data(self, data, fixed_length):
+        """
+        Reshape the input data by padding sequences to a fixed length (1080).
+        """
+        cell_sequences = {}
+        # Iterate over each row in the data
+        for row in data:
+            cell_id = row[0]  # Extract cell ID from the first column
+            # If cell ID not in dictionary, create a new entry
+            if cell_id not in cell_sequences:
+                cell_sequences[cell_id] = []
+            # Append the row (sample) to the corresponding cell's sequence
+            cell_sequences[cell_id].append(row[:])  # Exclude cell ID from sequence
+        # Pad or truncate sequences for each cell
+        processed_data = []
+        for cell_id, sequence in cell_sequences.items():
+            # Convert list of lists to numpy array
+            sequence = np.array(sequence)
+            seq_length = len(sequence)
+            # Pad or truncate the sequence to the fixed length
+            if seq_length < fixed_length:
+                # If sequence is shorter, pad with zeros
+                padding = np.zeros((fixed_length - seq_length, sequence.shape[1]))
+                processed_sequence = np.vstack((sequence, padding))
+            elif seq_length > fixed_length:
+                # If sequence is longer, truncate to fixed length
+                processed_sequence = sequence[:fixed_length, :]
+            else:
+                # If sequence length matches fixed length, no need for processing
+                processed_sequence = sequence
+            processed_data.append(processed_sequence)
+
+        processed_data = np.array(processed_data)
+        return processed_data
+    
+
+    def apply_mean_filter(self, data, window_size):
+        # Iterate over each sample (cell)
+        filtered_data = []
+        for sample in data:
+            # Apply mean filtering to each feature over the specified window size
+            filtered_sample = np.zeros((sample.shape[0] // window_size, sample.shape[1]))
+            for i in range(sample.shape[1]):  # Iterate over features
+                feature_values = sample[:, i]  # Extract feature values
+                # Reshape feature values into a 2D array with window_size columns
+                reshaped_values = feature_values[:len(feature_values) // window_size * window_size].reshape(-1, window_size)
+                # Compute the mean of each window and store in the filtered sample
+                filtered_feature = np.mean(reshaped_values, axis=1)
+                filtered_sample[:, i] = filtered_feature
+            filtered_data.append(filtered_sample)
+        # Convert list of arrays to numpy array
+        filtered_data = np.array(filtered_data)
+        return filtered_data
+    
+
+def process_track_data(track):
+    # This includes all extracted features
+    desired_features = [
+    "unique_track_id", "xpos", "ypos", "tpos", "cell_av_FRET_norm", "CFP_av", "YFP_av", 
+    "CFP_std", "YFP_std", "MajorAxisLength", "MinorAxisLength", "Eccentricity", "EquivDiameter", 
+    "Perimeter", "INT_av", "Area", "Aspect_Ratio", "mitosis_time", "fate"]
+
+    track = track[desired_features]
+    data_array = track.iloc[:].values # getting data as numpy array
+
+    # Re-structuring data
+    preprocess = PreProcess()
+    padded_data = preprocess.preprocess_data(data_array, fixed_length=1080)
+    padded_data = np.asarray(padded_data, dtype=np.float32)
+    filtered_data = np.nan_to_num(padded_data, nan=0.0)
+
+    y_train = np.empty((padded_data.shape[0])) # get fates (last column)
+    for cell in range(padded_data.shape[0]):
+        y_train[cell] = padded_data[cell][0][-1]
+
+    print("Filtered data shape", filtered_data.shape, y_train.shape)
+    return filtered_data, y_train
+
+
 ############ IMAGES ############
 
 def make_subimage(image_stack, sub_size, x_pos, y_pos, t_pos, cell_ids, segmentation):
@@ -139,10 +226,6 @@ def process_all_fovs(track_data, sub_size, bioreplicate = "BR1", segmentation = 
     return final_sub_images, np.array(all_fates)
 
 
-# def process_all_replicates(tracks_br1, tracks_br2_ tracks_br3, sub_size):
-#     "SHOULD I MAKE A FUNCTION THAT PROCESSES ALL TRACKS AT ONCE?"
-#     return images, segmentations, fret, y_train
-
 def edge_indexes(image):
 
     # Check on the first frame and first channel
@@ -174,96 +257,7 @@ def overimpose(images, segmentation):
     return overimposed_images
 
 
-############ TRACKS ONLY ############
-
-class PreProcess:
-    
-    def __init__(self):
-        pass
-    
-    def preprocess_data(self, data, fixed_length):
-        """
-        Reshape the input data by padding sequences to a fixed length (1080).
-        """
-        cell_sequences = {}
-        # Iterate over each row in the data
-        for row in data:
-            cell_id = row[0]  # Extract cell ID from the first column
-            # If cell ID not in dictionary, create a new entry
-            if cell_id not in cell_sequences:
-                cell_sequences[cell_id] = []
-            # Append the row (sample) to the corresponding cell's sequence
-            cell_sequences[cell_id].append(row[:])  # Exclude cell ID from sequence
-        # Pad or truncate sequences for each cell
-        processed_data = []
-        for cell_id, sequence in cell_sequences.items():
-            # Convert list of lists to numpy array
-            sequence = np.array(sequence)
-            seq_length = len(sequence)
-            # Pad or truncate the sequence to the fixed length
-            if seq_length < fixed_length:
-                # If sequence is shorter, pad with zeros
-                padding = np.zeros((fixed_length - seq_length, sequence.shape[1]))
-                processed_sequence = np.vstack((sequence, padding))
-            elif seq_length > fixed_length:
-                # If sequence is longer, truncate to fixed length
-                processed_sequence = sequence[:fixed_length, :]
-            else:
-                # If sequence length matches fixed length, no need for processing
-                processed_sequence = sequence
-            processed_data.append(processed_sequence)
-
-        processed_data = np.array(processed_data)
-        return processed_data
-    
-
-    def apply_mean_filter(self, data, window_size):
-        # Iterate over each sample (cell)
-        filtered_data = []
-        for sample in data:
-            # Apply mean filtering to each feature over the specified window size
-            filtered_sample = np.zeros((sample.shape[0] // window_size, sample.shape[1]))
-            for i in range(sample.shape[1]):  # Iterate over features
-                feature_values = sample[:, i]  # Extract feature values
-                # Reshape feature values into a 2D array with window_size columns
-                reshaped_values = feature_values[:len(feature_values) // window_size * window_size].reshape(-1, window_size)
-                # Compute the mean of each window and store in the filtered sample
-                filtered_feature = np.mean(reshaped_values, axis=1)
-                filtered_sample[:, i] = filtered_feature
-            filtered_data.append(filtered_sample)
-        # Convert list of arrays to numpy array
-        filtered_data = np.array(filtered_data)
-        return filtered_data
-    
-
-
-def process_track_data(track):
-
-    # Taking only the features we want
-    # desired_features = [
-    # "unique_track_id", "xpos", "ypos", "tpos", "cell_av_FRET_norm",
-    # "INT_av", "Area", "Aspect_Ratio", "mitosis_time", "fate"]
-
-    desired_features = [
-    "unique_track_id", "xpos", "ypos", "tpos", "cell_av_FRET_norm", "CFP_av", "YFP_av", 
-    "CFP_std", "YFP_std", "MajorAxisLength", "MinorAxisLength", "Eccentricity", "EquivDiameter", 
-    "Perimeter", "INT_av", "Area", "Aspect_Ratio", "mitosis_time", "fate"]
-
-    track = track[desired_features]
-    data_array = track.iloc[:].values # getting data as numpy array
-
-    # Re-structuring data
-    preprocess = PreProcess()
-    padded_data = preprocess.preprocess_data(data_array, fixed_length=1080)
-    padded_data = np.asarray(padded_data, dtype=np.float32)
-    filtered_data = np.nan_to_num(padded_data, nan=0.0)
-
-    y_train = np.empty((padded_data.shape[0])) # get fates (last column)
-    for cell in range(padded_data.shape[0]):
-        y_train[cell] = padded_data[cell][0][-1]
-
-    print("Filtered data shape", filtered_data.shape, y_train.shape)
-    return filtered_data, y_train
+#### Removing daughter cells from tracks and images ####
 
 def daughter_indexes(track_data):
     indices_to_remove = []
@@ -279,29 +273,6 @@ def daughter_indexes(track_data):
 
     return indices_to_remove
 
-
-def edge_indexes(image):
-
-    # Check on the first frame and first channel
-    first_time_point_first_channel = image[:, 0, 0, :, :]
-    indices_to_remove = []
-
-    # Iterate over each cell to check for rows or columns full of zeros at the first time point
-    for cell_index in range(first_time_point_first_channel.shape[0]):
-        # Extract the cell's data at the first time point
-        cell_data = first_time_point_first_channel[cell_index]
-        
-        # Check if there is any row or column that is entirely zeros
-        has_zero_row = np.all(cell_data == 0, axis=1).any()  # Check rows
-        has_zero_column = np.all(cell_data == 0, axis=0).any()  # Check columns
-        
-        if has_zero_row or has_zero_column:
-            indices_to_remove.append(cell_index)
-
-    return indices_to_remove
-
-
-import numpy as np
 
 def daughter_trace_removal(tabular_data, image_data):
     """
@@ -333,11 +304,6 @@ def daughter_trace_removal(tabular_data, image_data):
     
     return processed_tabular, processed_images
 
-
-
-
-import numpy as np
-from scipy.ndimage import label, find_objects
 
 def remove_debris_from_fov(fov_image):
     """
