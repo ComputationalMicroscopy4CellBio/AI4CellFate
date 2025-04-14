@@ -85,20 +85,6 @@ def contrastive_loss(z, y_true, tau=0.5):
 
 
 ##### Covariance loss #####
-def get_off_diag_values(x):
-    """
-    Extract off-diagonal values from a square matrix.
-    
-    Args:
-        x: Square matrix tensor
-        
-    Returns:
-        Flattened tensor of off-diagonal values
-    """
-    x_flat = tf.reshape(x,[-1])[:-1]
-    x_reshape = tf.reshape(x_flat,[x.shape[0]-1, x.shape[0]+1])[:, 1:]
-    off_diag_values = tf.reshape(x_reshape,[-1])
-    return off_diag_values
 
 def covariance_loss(z_batch):
     """
@@ -114,14 +100,20 @@ def covariance_loss(z_batch):
         - Mean of diagonal covariance terms
         - Mean of off-diagonal covariance terms
     """
+
+    # Normalize the batch
     z_batch = z_batch - tf.reduce_mean(z_batch, axis=0)
+
+    # Compute standard deviation loss
     z_std = tf.sqrt(tf.math.reduce_variance(z_batch, axis=0) + 0.0001)
     z_std_loss = tf.reduce_mean( tf.nn.relu(1 - z_std) )
+
+    # Compute covariance matrix
     cov = (tf.transpose(z_batch) @ z_batch) / (z_batch.shape[0] ) 
     diag_cov = tf.linalg.diag_part(cov) 
-    diag_cov_mean = tf.reduce_mean(tf.abs(diag_cov))    
-    off_diag_loss = tf.reduce_mean(tf.abs(get_off_diag_values(cov)))
-    return cov, z_std_loss, diag_cov_mean , off_diag_loss
+    diag_cov_mean = tf.reduce_mean(tf.abs(diag_cov)) 
+
+    return z_std_loss, diag_cov_mean
     
 
 ##### SSIM loss #####
