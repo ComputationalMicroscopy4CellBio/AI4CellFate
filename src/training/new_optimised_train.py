@@ -171,7 +171,7 @@ def train_lambdas_cov(config, encoder, decoder, discriminator, x_train, y_train,
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
                 # Covariance loss
-                cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
+                cov, z_std_loss, diag_cov_mean, off_diag_loss = covariance_loss(z_imgs)
                 cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss #off_diag_loss
                 #cov_loss = 0.5 * unified_regularization_loss(z_imgs)[1]
 
@@ -457,7 +457,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
                 # Covariance loss
-                cov, z_std_loss, diag_cov_mean, off_diag_loss = cov_loss_terms(z_imgs)
+                cov, z_std_loss, diag_cov_mean, off_diag_loss = covariance_loss(z_imgs)
                 cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss #off_diag_loss
                 #cov_loss = 0.5 * unified_regularization_loss(z_imgs)[1]
 
