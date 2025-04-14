@@ -23,6 +23,10 @@ def main():
     # Load data
     x_train, x_test, y_train, y_test = load_data() 
 
+
+    ##### STAGE 1 #####
+    # Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
+
     config_autoencoder = {
         'batch_size': 30,
         'epochs': 15,
@@ -34,9 +38,6 @@ def main():
         'lambda_adv': 1,
     }
 
-    ##### STAGE 1 #####
-    # Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
-
     lambda_autoencoder_results = train_autoencoder(config_autoencoder, x_train)
     encoder = lambda_autoencoder_results['encoder']
     decoder = lambda_autoencoder_results['decoder']
@@ -44,6 +45,9 @@ def main():
 
     # Evaluate the trained model (store latent space and reconstructed images)
     evaluate_model(encoder, decoder, x_train, y_train, output_dir="./results/optimisation/autoencoder")
+
+    ##### STAGE 2#####
+    # Train AI4CellFate: Autoencoder + Covariance + Contrastive (Engineered Latent Space)
 
     config_ai4cellfate = {
         'batch_size': 30,
@@ -58,9 +62,6 @@ def main():
         'lambda_contra': 8,
     }
  
-    ##### STAGE 2#####
-    # Train AI4CellFate: Autoencoder + Covariance + Contrastive (Engineered Latent Space)
-
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, x_train, y_train, x_test, y_test) 
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
