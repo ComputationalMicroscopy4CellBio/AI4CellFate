@@ -513,7 +513,7 @@ def augmentations(movie, augment_times=4, seed=42):
     # Apply selected augmentations
     augmented_movies = [augment(movie) for augment in selected_augmentations]
 
-    return np.array(augmented_movies)
+    return np.array(augmented_movies)  # Shape: (augment_times, time, height, width)
 
 def stretch_intensities_global(train_images, test_images, epsilon=0.001):
     """
@@ -631,5 +631,69 @@ def remove_and_replace(data, cell_index, time_index):
     new_data[cell_index] = modified_cell_data
 
     return new_data
+
+
+#### Cell Clock Normalisation ####
+
+def normalize_cell_time(data):
+    """
+    Normalize cell time by extracting feature values at 0%, 10%, ..., 100% 
+    of each cell's lifetime.
+    
+    Parameters:
+    - data: numpy array of shape (cells, time points, features)
+      (assumes the first feature is used to determine lifetime)
+    
+    Returns:
+    - normalized_data: numpy array of shape (cells, 11, features)
+    """
+    num_cells, num_timepoints, num_features = data.shape
+    normalized_data = np.zeros((num_cells, 11, num_features))
+
+    for i in range(num_cells):
+        # Determine lifetime (number of nonzero values in the first feature)
+        lifetime = np.count_nonzero(data[i, :, 0])
+
+        if lifetime == 0:
+            continue  # Skip cells that are all zero
+
+        # Compute the indices corresponding to 0%, 10%, ..., 100% of the lifetime
+        indices = np.round(np.linspace(0, lifetime - 1, 11)).astype(int)
+
+        # Extract feature values at these indices
+        normalized_data[i] = data[i, indices, :]
+
+    return normalized_data
+
+
+def normalize_cell_time_images(images):
+    """
+    Normalize cell time by extracting images at 0%, 10%, ..., 100% 
+    of each cell's lifetime.
+    
+    Parameters:
+    - images: numpy array of shape (cells, time, height, width)
+      (assumes a cell's lifetime is determined by nonzero pixel values)
+    
+    Returns:
+    - normalized_images: numpy array of shape (cells, 11, height, width)
+    """
+    num_cells, num_timepoints, height, width = images.shape
+    normalized_images = np.zeros((num_cells, 11, height, width))
+
+    for i in range(num_cells):
+        # Determine lifetime (number of nonzero frames)
+        lifetime = np.count_nonzero(np.sum(images[i], axis=(1, 2)))  # Sum over spatial dims to check for zeros
+        #print(lifetime)
+        if lifetime == 0:
+            continue  # Skip cells that are all zero
+
+        # Compute the indices corresponding to 0%, 10%, ..., 100% of the lifetime
+        indices = np.round(np.linspace(0, lifetime - 1, 11)).astype(int)
+
+        # Extract images at these indices
+        normalized_images[i] = images[i, indices, :, :]
+
+    return normalized_images
 
 
