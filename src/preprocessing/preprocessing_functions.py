@@ -556,3 +556,80 @@ def stretch_intensities_global(train_images, test_images, epsilon=0.001):
 
     return scaled_train_images, scaled_test_images
 
+
+
+#### Filtering "problematic" cells #### 
+
+def find_problematic_cells_and_times(data, threshold=4):
+    """
+    Efficiently finds indexes of cells and time points with at least one pixel value 
+    significantly higher than all other pixels in the same image.
+    
+    Args:
+        data (numpy.ndarray): The input data of shape (cells, time, height, width).
+        threshold (int): The minimum difference to consider a pixel problematic.
+        
+    Returns:
+        list: Sorted list of tuples (cell_index, time_index) with problematic pixels.
+    """
+    problematic_indices = []
+
+    # Iterate over each cell and time point
+    for cell_idx in range(data.shape[0]):
+        for time_idx in range(data.shape[1]):
+            image = data[cell_idx, time_idx]  # Shape: (20, 20)
+            
+            # Flatten the image to easily exclude each pixel
+            flat_image = image.flatten()
+            
+            # Get max value of the entire image
+            max_pixel = np.max(flat_image)
+            
+            # Get the max value of all other pixels by excluding each pixel one by one
+            for pixel_idx, pixel_value in enumerate(flat_image):
+                # Mask to exclude the current pixel
+                mask = np.ones(flat_image.shape, dtype=bool)
+                mask[pixel_idx] = False
+                
+                # Maximum value among the other pixels
+                max_others = np.max(flat_image[mask])
+                
+                # Check if the current pixel is significantly higher
+                if pixel_value > (max_others + threshold):
+                    problematic_indices.append((cell_idx, time_idx))
+                    break  # No need to check other pixels for this image
+    
+    return sorted(problematic_indices)
+
+
+def remove_and_replace(data, cell_index, time_index):
+    """
+    Remove the specified image for both channels and add a zero-only image 
+    at the last time point to maintain the shape.
+    
+    Args:
+        data (numpy.ndarray): The input data of shape (cells, time, channels, height, width).
+        cell_index (int): The index of the cell to modify.
+        time_index (int): The time point to remove.
+        
+    Returns:
+        numpy.ndarray: The modified data.
+    """
+    # Extract shape information
+    _, time_points, channels, height, width = data.shape
+    new_data = data.copy()
+    # Remove the specified time point
+    modified_cell_data = np.delete(new_data[cell_index], time_index, axis=0)  # Shape: (1079, 2, 20, 20)
+
+    # Create a zero-only image
+    zero_image = np.zeros((1, channels, height, width))  # Shape: (1, 2, 20, 20)
+
+    # Append the zero-only image at the last time point
+    modified_cell_data = np.concatenate([modified_cell_data, zero_image], axis=0)  # Back to (1080, 2, 20, 20)
+
+    # Assign the modified data back
+    new_data[cell_index] = modified_cell_data
+
+    return new_data
+
+
