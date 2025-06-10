@@ -39,32 +39,29 @@ AI4CellFate/
 git clone https://github.com/ComputationalMicroscopy4CellBio/AI4CellFate.git
 cd AI4CellFate
 
-# Install the package
-pip install -e .
+# Create a new conda environment (here named aicellfate):
+conda create -n aicellfate python=3.10
+conda activate aicellfate
+
+#Install the required packages:
+pip install -r requirements.txt
+
 ```
 
 ## Usage
 
-```python
-from src.ai4cellfate import main
+Open the Jupyter notebook notebooks/AI4CellFate_workflow.ipynb. The notebook contains the complete documented AI4CellFate workflow: Data loading, Model Training and Evaluation and Visualisation. All cells should be ran sequentially.
 
-# Run the complete training pipeline
-main()
-```
+- Load the data: Under the “Load Data” cell, replace the x_train, y_train, x_test and y_test with your data, and run the cell. For the following cells, it is expected that the images have a shape of (cells, height, width) and the labels have a shape of (cells, ).
 
-## Configuration
+- Train the AI4CellFate model (under the "Optional" cell): Training stage 1: train the adversarial autoencoder by running the according cell. Here you can tune hyperparameters such as the number of epochs, batch size, learning rate, and the lambdas (or “weights”) of the reconstruction and adversarial losses. Training stage 2: train the full AI4CellFate model (this includes the latent space engineering). Here, you can also tune hyperparameters as previously, and now including the lambdas (or “weights”) of the contrastive and covariance losses.
 
-The model can be configured through the following parameters:
+- Latent Space Visualisation: after full model training, visualise the Latent Spaces by running the next cells.
 
-- `batch_size`: Training batch size
-- `epochs`: Number of training epochs
-- `learning_rate`: Learning rate for optimization
-- `latent_dim`: Dimension of the latent space
-- `GaussianNoise_std`: Standard deviation for noise injection
-- `lambda_recon`: Reconstruction loss weight
-- `lambda_adv`: Adversarial loss weight
-- `lambda_cov`: Covariance loss weight
-- `lambda_contra`: Contrastive loss weight
+- Classify from the Latent Space: run the next cell to train an MLP to predict the individual cell fates. 
+
+- Visual Interpretation: Run the following cells to perform image perturbations on the chosen latent features.
+
 
 ## Results
 
