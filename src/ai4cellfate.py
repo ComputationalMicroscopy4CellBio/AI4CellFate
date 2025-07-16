@@ -1,7 +1,7 @@
 import numpy as np
-from src.training.train import *
-from src.evaluation.evaluate import evaluate_model
-from src.utils import *
+from .training.train import *
+from .evaluation.evaluate import evaluate_model
+from .utils import *
 
 # Function to load data
 def load_data():
