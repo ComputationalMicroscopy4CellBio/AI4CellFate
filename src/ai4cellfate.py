@@ -10,7 +10,7 @@ def load_data():
 
     x_train = np.load('./data/images/train_images_augmented.npy')[:,0,:,:]
     y_train = np.load('./data/labels/train_labels_augmented.npy')
-    x_test = np.load('./data/images/test_images.npy')[:,0,:,:]
+    x_test = np.load('./data/images/test_time_norm.npy')[:,0,:,:]
     y_test = np.load('./data/labels/test_labels.npy')
     
     return x_train, x_test, y_train, y_test
