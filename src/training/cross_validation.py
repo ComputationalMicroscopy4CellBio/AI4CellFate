@@ -71,7 +71,7 @@ class CrossValidation:
         
         return x_fold_train, y_fold_train, x_fold_val, y_fold_val
     
-    def train_fold(self, fold_num, x_fold_train, y_fold_train, x_fold_val, y_fold_val, 
+    def train_fold(self, fold_num, x_fold_train, y_fold_train, x_fold_val, y_fold_val, x_test, y_test,
                    config_autoencoder, config_ai4cellfate, output_dir):
         """
         Train models for a single fold.
@@ -116,7 +116,9 @@ class CrossValidation:
             x_fold_train, 
             y_fold_train, 
             x_fold_val, 
-            y_fold_val
+            y_fold_val, 
+            x_test,  # Using validation set as test set for this fold
+            y_test
         )
         
         # Get final models
@@ -127,28 +129,27 @@ class CrossValidation:
         # Save latent space on this fold
         evaluator = Evaluation(fold_output_dir)
         latent_space = final_encoder.predict(x_fold_train)
-        val_latent = final_encoder.predict(x_fold_val)
         evaluator.visualize_latent_space(latent_space, y_fold_train, epoch=0)
         
         # Evaluate on validation set
-        print("Evaluating on validation set...")
-        val_latent = final_encoder.predict(x_fold_val) #np.expand_dims(x_fold_val, axis=-1)
+        print("Evaluating on test set...")
+        test_latent = final_encoder.predict(x_test) 
         
         # Train classifier on validation latent space
-        classifier = mlp_classifier(latent_dim=val_latent.shape[1])
+        classifier = mlp_classifier(latent_dim=test_latent.shape[1])
         classifier.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-        classifier.fit(val_latent, y_fold_val, epochs=50, batch_size=32, verbose=0)
+        classifier.fit(test_latent, y_test, epochs=50, batch_size=32, verbose=0)
         
-        # Predict on validation set
-        val_pred_prob = classifier.predict(val_latent)
-        val_pred = np.argmax(val_pred_prob, axis=1)
+        # Predict on test set
+        test_pred_prob = classifier.predict(test_latent)
+        test_pred = np.argmax(test_pred_prob, axis=1)
         
-        # Calculate metrics
-        val_accuracy = accuracy_score(y_fold_val, val_pred)
-        val_precision = precision_score(y_fold_val, val_pred, average='weighted')
-        val_recall = recall_score(y_fold_val, val_pred, average='weighted')
-        val_f1 = f1_score(y_fold_val, val_pred, average='weighted')
-        val_confusion = confusion_matrix(y_fold_val, val_pred)
+        # Calculate metrics TODO: change names to test
+        val_accuracy = accuracy_score(y_test, test_pred)
+        val_precision = precision_score(y_test, test_pred, average='weighted')
+        val_recall = recall_score(y_test, test_pred, average='weighted')
+        val_f1 = f1_score(y_test, test_pred, average='weighted')
+        val_confusion = confusion_matrix(y_test, test_pred)
         
         print(f"Fold {fold_num + 1} Validation Results:")
         print(f"  Accuracy: {val_accuracy:.4f}")
@@ -197,7 +198,7 @@ class CrossValidation:
         
         return fold_results
     
-    def run_cross_validation(self, x_train, y_train, config_autoencoder, config_ai4cellfate, 
+    def run_cross_validation(self, x_train, y_train, x_test, y_test, config_autoencoder, config_ai4cellfate, 
                            output_dir="./results/cross_validation", apply_augmentation=True):
         """
         Run complete k-fold cross-validation.
@@ -237,7 +238,7 @@ class CrossValidation:
             
             # Train fold
             fold_results = self.train_fold(
-                fold_num, x_fold_train, y_fold_train, x_fold_val, y_fold_val,
+                fold_num, x_fold_train, y_fold_train, x_fold_val, y_fold_val, x_test, y_test,
                 config_autoencoder.copy(), config_ai4cellfate.copy(), output_dir
             )
             
