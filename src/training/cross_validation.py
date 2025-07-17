@@ -127,6 +127,7 @@ class CrossValidation:
         # Save latent space on this fold
         evaluator = Evaluation(fold_output_dir)
         latent_space = final_encoder.predict(x_fold_train)
+        val_latent = final_encoder.predict(x_fold_val)
         evaluator.visualize_latent_space(latent_space, y_fold_train, epoch=0)
         
         # Evaluate on validation set
@@ -135,6 +136,7 @@ class CrossValidation:
         
         # Train classifier on validation latent space
         classifier = mlp_classifier(latent_dim=val_latent.shape[1])
+        classifier.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
         classifier.fit(val_latent, y_fold_val, epochs=50, batch_size=32, verbose=0)
         
         # Predict on validation set
@@ -176,10 +178,10 @@ class CrossValidation:
         if self.save_individual_models:
             models_dir = os.path.join(fold_output_dir, "models")
             os.makedirs(models_dir, exist_ok=True)
-            final_encoder.save_weights(os.path.join(models_dir, "encoder_weights.h5"))
-            final_decoder.save_weights(os.path.join(models_dir, "decoder_weights.h5"))
-            final_discriminator.save_weights(os.path.join(models_dir, "discriminator_weights.h5"))
-            classifier.save_weights(os.path.join(models_dir, "classifier_weights.h5"))
+            final_encoder.save_weights(os.path.join(models_dir, "encoder.weights.h5"))
+            final_decoder.save_weights(os.path.join(models_dir, "decoder.weights.h5"))
+            final_discriminator.save_weights(os.path.join(models_dir, "discriminator.weights.h5"))
+            classifier.save_weights(os.path.join(models_dir, "classifier.weights.h5"))
         
         # Save fold metrics
         with open(os.path.join(fold_output_dir, "metrics.json"), 'w') as f:

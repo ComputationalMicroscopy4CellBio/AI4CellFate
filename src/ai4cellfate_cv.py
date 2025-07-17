@@ -51,7 +51,7 @@ def run_cross_validation(k_folds=5, random_state=42):
     # Configuration for AI4CellFate training
     config_ai4cellfate = {
         'batch_size': 30,
-        'epochs': 100,
+        'epochs': 10,
         'learning_rate': 0.001,
         'seed': random_state,
         'latent_dim': 2,
