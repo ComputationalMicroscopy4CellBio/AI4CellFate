@@ -312,7 +312,13 @@ class CrossValidation:
         
         for i, (metric, title) in enumerate(zip(metrics, titles)):
             ax = axes[i//2, i%2]
-            fold_values = cv_results[f'fold_{metric}s']
+            # Handle the irregular pluralization
+            if metric == 'accuracy':
+                fold_values = cv_results['fold_accuracies']
+            elif metric == 'f1_score':
+                fold_values = cv_results['fold_f1_scores']
+            else:
+                fold_values = cv_results[f'fold_{metric}s']
             mean_val = cv_results[f'mean_{metric}']
             std_val = cv_results[f'std_{metric}']
             
