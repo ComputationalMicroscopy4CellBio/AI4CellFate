@@ -233,7 +233,6 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             val_image_batch = x_val[val_batch_start:val_batch_end]
             val_labels_batch = y_val[val_batch_start:val_batch_end]
             
-            print("val_image_batch.shape:", val_image_batch.shape)
             # Forward pass for validation (no training)
             val_image_batch_expanded = tf.expand_dims(val_image_batch, axis=-1)
             val_z_imgs = encoder(val_image_batch, training=False)
@@ -288,17 +287,17 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             # Train the classifier
             classifier = mlp_classifier(latent_dim=config['latent_dim'])
             classifier.compile(loss='sparse_categorical_crossentropy', optimizer= tf.keras.optimizers.Adam(learning_rate=config['learning_rate']), metrics=['accuracy'])
-            #x_val_, x_test_, y_val_, y_test_ = train_test_split(z_imgs_test, y_test, test_size=0.5, random_state=42) 
-            history = classifier.fit(z_imgs_train, y_train, batch_size=config['batch_size'], epochs=50, validation_data=(z_imgs_val, y_val)) # 
+            x_val_, x_test_, y_val_, y_test_ = train_test_split(z_imgs_test, y_test, test_size=0.5, random_state=42) 
+            history = classifier.fit(z_imgs_train, y_train, batch_size=config['batch_size'], epochs=50, validation_data=(x_val_, y_val_)) # 
 
-            y_pred = classifier.predict(z_imgs_test)
+            y_pred = classifier.predict(x_test_)
             threshold = 0.5
             y_pred_classes = np.zeros_like(y_pred[:, 1])
             y_pred_classes[y_pred[:, 1] > threshold] = 1  
 
             # Calculate confusion matrix
-            cm = confusion_matrix(y_test, y_pred_classes)
-
+            cm = confusion_matrix(y_test_, y_pred_classes)
+            print("cm:", cm)
             class_sums = cm.sum(axis=1, keepdims=True)
             conf_matrix_normalized = cm / class_sums
             mean_diagonal = np.mean(np.diag(conf_matrix_normalized))
@@ -306,10 +305,10 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
 
             print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}")
 
-            if mean_diagonal > 0.65 and precison >= 0.7 and distance > 0.9:
+            if mean_diagonal > 0.65 and precison >= 0.7: # and distance > 0.9
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
-                if epoch > 50: 
+                if epoch > 1: 
                     print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 

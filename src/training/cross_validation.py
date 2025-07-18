@@ -1,9 +1,10 @@
 import numpy as np
 import tensorflow as tf
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, balanced_accuracy_score
 import os
 import json
+from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
 from ..preprocessing.preprocessing_functions import augment_dataset, augmentations
 from ..models import Encoder, Decoder, Discriminator, mlp_classifier
@@ -71,7 +72,7 @@ class CrossValidation:
         
         return x_fold_train, y_fold_train, x_fold_val, y_fold_val
     
-    def train_fold(self, fold_num, x_fold_train, y_fold_train, x_fold_val, y_fold_val, x_test, y_test,
+    def train_fold(self, fold_num, x_fold_train, y_fold_train, x_fold_val, y_fold_val,
                    config_autoencoder, config_ai4cellfate, output_dir):
         """
         Train models for a single fold.
@@ -117,8 +118,8 @@ class CrossValidation:
             y_fold_train, 
             x_fold_val, 
             y_fold_val, 
-            x_test,  # Using validation set as test set for this fold
-            y_test
+            x_fold_val,  
+            y_fold_val
         )
         
         # Get final models
@@ -133,26 +134,29 @@ class CrossValidation:
         
         # Evaluate on validation set
         print("Evaluating on test set...")
-        test_latent = final_encoder.predict(x_test) 
+        test_latent = final_encoder.predict(x_fold_val) 
         
         # Train classifier on validation latent space
         classifier = mlp_classifier(latent_dim=test_latent.shape[1])
-        classifier.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-        classifier.fit(test_latent, y_test, epochs=50, batch_size=32, verbose=0)
+        classifier.compile(loss='sparse_categorical_crossentropy', optimizer= tf.keras.optimizers.Adam(learning_rate=config_ai4cellfate['learning_rate']), metrics=['accuracy'])
+        x_val_, x_test_, y_val_, y_test_ = train_test_split(test_latent, y_fold_val, test_size=0.5, random_state=42) 
+        history = classifier.fit(latent_space, y_fold_train, batch_size=config_ai4cellfate['batch_size'], epochs=50, validation_data=(x_val_, y_val_)) 
         
         # Predict on test set
-        test_pred_prob = classifier.predict(test_latent)
+        test_pred_prob = classifier.predict(x_test_)
         test_pred = np.argmax(test_pred_prob, axis=1)
         
-        # Calculate metrics TODO: change names to test
-        val_accuracy = accuracy_score(y_test, test_pred)
-        val_precision = precision_score(y_test, test_pred, average='weighted')
-        val_recall = recall_score(y_test, test_pred, average='weighted')
-        val_f1 = f1_score(y_test, test_pred, average='weighted')
-        val_confusion = confusion_matrix(y_test, test_pred)
+        # Calculate metrics 
+        val_accuracy = accuracy_score(y_test_, test_pred)
+        val_balanced_accuracy = balanced_accuracy_score(y_test_, test_pred)
+        val_precision = precision_score(y_test_, test_pred, average='weighted')
+        val_recall = recall_score(y_test_, test_pred, average='weighted')
+        val_f1 = f1_score(y_test_, test_pred, average='weighted')
+        val_confusion = confusion_matrix(y_test_, test_pred)
         
         print(f"Fold {fold_num + 1} Validation Results:")
         print(f"  Accuracy: {val_accuracy:.4f}")
+        print(f"  Balanced Accuracy: {val_balanced_accuracy:.4f}")
         print(f"  Precision: {val_precision:.4f}")
         print(f"  Recall: {val_recall:.4f}")
         print(f"  F1-score: {val_f1:.4f}")
@@ -162,6 +166,7 @@ class CrossValidation:
             'fold_num': fold_num + 1,
             'validation_metrics': {
                 'accuracy': val_accuracy,
+                'balanced_accuracy': val_balanced_accuracy,
                 'precision': val_precision,
                 'recall': val_recall,
                 'f1_score': val_f1,
@@ -189,6 +194,7 @@ class CrossValidation:
             json.dump({
                 'validation_metrics': {
                     'accuracy': val_accuracy,
+                    'balanced_accuracy': val_balanced_accuracy,
                     'precision': val_precision,
                     'recall': val_recall,
                     'f1_score': val_f1,
@@ -198,7 +204,7 @@ class CrossValidation:
         
         return fold_results
     
-    def run_cross_validation(self, x_train, y_train, x_test, y_test, config_autoencoder, config_ai4cellfate, 
+    def run_cross_validation(self, x_train, y_train, config_autoencoder, config_ai4cellfate, 
                            output_dir="./results/cross_validation", apply_augmentation=True):
         """
         Run complete k-fold cross-validation.
@@ -238,7 +244,7 @@ class CrossValidation:
             
             # Train fold
             fold_results = self.train_fold(
-                fold_num, x_fold_train, y_fold_train, x_fold_val, y_fold_val, x_test, y_test,
+                fold_num, x_fold_train, y_fold_train, x_fold_val, y_fold_val,
                 config_autoencoder.copy(), config_ai4cellfate.copy(), output_dir
             )
             
@@ -263,6 +269,7 @@ class CrossValidation:
         
         # Extract metrics from all folds
         accuracies = [fold['validation_metrics']['accuracy'] for fold in self.fold_results]
+        balanced_accuracies = [fold['validation_metrics']['balanced_accuracy'] for fold in self.fold_results]
         precisions = [fold['validation_metrics']['precision'] for fold in self.fold_results]
         recalls = [fold['validation_metrics']['recall'] for fold in self.fold_results]
         f1_scores = [fold['validation_metrics']['f1_score'] for fold in self.fold_results]
@@ -271,6 +278,8 @@ class CrossValidation:
         cv_results = {
             'mean_accuracy': np.mean(accuracies),
             'std_accuracy': np.std(accuracies),
+            'mean_balanced_accuracy': np.mean(balanced_accuracies),
+            'std_balanced_accuracy': np.std(balanced_accuracies),
             'mean_precision': np.mean(precisions),
             'std_precision': np.std(precisions),
             'mean_recall': np.mean(recalls),
@@ -278,6 +287,7 @@ class CrossValidation:
             'mean_f1_score': np.mean(f1_scores),
             'std_f1_score': np.std(f1_scores),
             'fold_accuracies': accuracies,
+            'fold_balanced_accuracies': balanced_accuracies,
             'fold_precisions': precisions,
             'fold_recalls': recalls,
             'fold_f1_scores': f1_scores
@@ -285,6 +295,7 @@ class CrossValidation:
         
         # Print results
         print(f"Accuracy: {cv_results['mean_accuracy']:.4f} ± {cv_results['std_accuracy']:.4f}")
+        print(f"Balanced Accuracy: {cv_results['mean_balanced_accuracy']:.4f} ± {cv_results['std_balanced_accuracy']:.4f}")
         print(f"Precision: {cv_results['mean_precision']:.4f} ± {cv_results['std_precision']:.4f}")
         print(f"Recall: {cv_results['mean_recall']:.4f} ± {cv_results['std_recall']:.4f}")
         print(f"F1-score: {cv_results['mean_f1_score']:.4f} ± {cv_results['std_f1_score']:.4f}")
@@ -306,16 +317,18 @@ class CrossValidation:
             cv_results (dict): Cross-validation results
             output_dir (str): Directory to save plots
         """
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+        fig, axes = plt.subplots(2, 3, figsize=(18, 12))
         
-        metrics = ['accuracy', 'precision', 'recall', 'f1_score']
-        titles = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
+        metrics = ['accuracy', 'balanced_accuracy', 'precision', 'recall', 'f1_score']
+        titles = ['Accuracy', 'Balanced Accuracy', 'Precision', 'Recall', 'F1-Score']
         
         for i, (metric, title) in enumerate(zip(metrics, titles)):
-            ax = axes[i//2, i%2]
+            ax = axes[i//3, i%3]
             # Handle the irregular pluralization
             if metric == 'accuracy':
                 fold_values = cv_results['fold_accuracies']
+            elif metric == 'balanced_accuracy':
+                fold_values = cv_results['fold_balanced_accuracies']
             elif metric == 'f1_score':
                 fold_values = cv_results['fold_f1_scores']
             else:
@@ -336,6 +349,10 @@ class CrossValidation:
             ax.set_xticks(range(1, self.k_folds + 1))
             ax.legend()
             ax.grid(True, alpha=0.3)
+        
+        # Hide the empty subplot
+        if len(metrics) < 6:
+            axes[1, 2].axis('off')
         
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, 'cv_results.png'), dpi=300, bbox_inches='tight')
