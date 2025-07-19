@@ -38,7 +38,7 @@ def main():
     config_autoencoder = {
         'batch_size': 30,
         'epochs': 15,
-        'learning_rate': 0.001,
+        'learning_rate': 0.0001,
         'seed': 42,
         'latent_dim': 2,
         'GaussianNoise_std': 0.003,
