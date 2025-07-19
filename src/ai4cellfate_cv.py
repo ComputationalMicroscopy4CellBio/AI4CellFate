@@ -39,8 +39,8 @@ def run_cross_validation(k_folds=5, random_state=42):
     # Configuration for autoencoder training
     config_autoencoder = {
         'batch_size': 30,
-        'epochs': 10,
-        'learning_rate': 0.001,
+        'epochs': 15,
+        'learning_rate': 0.0001,
         'seed': random_state,
         'latent_dim': 2,
         'GaussianNoise_std': 0.003,

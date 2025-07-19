@@ -25,32 +25,83 @@ def save_model_weights_to_disk(encoder, decoder, discriminator, output_dir):
     discriminator.save_weights(os.path.join(output_dir, "discriminator.weights.h5"))
 
 
-def save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, output_dir):
-    # Create loss plot and save it under the 'results' directory
-    plt.figure(figsize=(10, 5))
-
-    # Plot both reconstruction and adversarial losses with different colors
-    print(reconstruction_losses)
-    print("len:",len(reconstruction_losses))
-    plt.plot(reconstruction_losses, label='Reconstruction Loss', color='blue', linestyle='-', linewidth=2)
-    plt.plot(adversarial_losses, label='Adversarial Loss', color='red', linestyle='--', linewidth=2)
-
-    # Title and labels
-    plt.title(f"Training Losses", fontsize=14)
-    plt.xlabel('Epochs', fontsize=12)
-    plt.ylabel('Loss', fontsize=12)
+def save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, 
+                               val_reconstruction_losses=None, val_adversarial_losses=None,
+                               output_dir="./results/loss_plots"):
+    """
+    Save loss plots for autoencoder training with optional validation losses.
     
-    # Add a grid and legend
-    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    Args:
+        reconstruction_losses: Training reconstruction losses
+        adversarial_losses: Training adversarial losses
+        val_reconstruction_losses: Validation reconstruction losses (optional)
+        val_adversarial_losses: Validation adversarial losses (optional)
+        output_dir: Directory to save plots
+    """
+    # Create subplots for better visualization
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Define colors and styles
+    train_style = {'linestyle': '-', 'linewidth': 2, 'alpha': 0.8}
+    val_style = {'linestyle': '--', 'linewidth': 2, 'alpha': 0.7}
+    
+    # Plot 1: Reconstruction Loss
+    axes[0].plot(reconstruction_losses, label='Train Reconstruction', color='blue', **train_style)
+    if val_reconstruction_losses is not None:
+        axes[0].plot(val_reconstruction_losses, label='Val Reconstruction', color='blue', **val_style)
+    axes[0].set_title('Reconstruction Loss', fontsize=14)
+    axes[0].set_xlabel('Epochs', fontsize=12)
+    axes[0].set_ylabel('Loss', fontsize=12)
+    axes[0].grid(True, alpha=0.3)
+    axes[0].legend()
+    
+    # Plot 2: Adversarial Loss
+    axes[1].plot(adversarial_losses, label='Train Adversarial', color='red', **train_style)
+    if val_adversarial_losses is not None:
+        axes[1].plot(val_adversarial_losses, label='Val Adversarial', color='red', **val_style)
+    axes[1].set_title('Adversarial Loss', fontsize=14)
+    axes[1].set_xlabel('Epochs', fontsize=12)
+    axes[1].set_ylabel('Loss', fontsize=12)
+    axes[1].grid(True, alpha=0.3)
+    axes[1].legend()
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    # Save the plots
+    os.makedirs(output_dir, exist_ok=True)
+    plt.savefig(f"{output_dir}/autoencoder_loss_plots.eps", dpi=300, bbox_inches='tight')
+    plt.savefig(f"{output_dir}/autoencoder_loss_plots.png", dpi=300, bbox_inches='tight')
+    
+    # Create a combined plot for overview
+    plt.figure(figsize=(12, 8))
+    
+    # Plot training losses
+    plt.plot(reconstruction_losses, label='Train Reconstruction', color='blue', linestyle='-', linewidth=2)
+    plt.plot(adversarial_losses, label='Train Adversarial', color='red', linestyle='-', linewidth=2)
+    
+    # Plot validation losses if provided
+    if val_reconstruction_losses is not None:
+        plt.plot(val_reconstruction_losses, label='Val Reconstruction', color='blue', linestyle='--', linewidth=2, alpha=0.7)
+        plt.plot(val_adversarial_losses, label='Val Adversarial', color='red', linestyle='--', linewidth=2, alpha=0.7)
+    
+    # Title and labels
+    plt.title("Autoencoder Training and Validation Losses", fontsize=16, fontweight='bold')
+    plt.xlabel('Epochs', fontsize=14)
+    plt.ylabel('Loss', fontsize=14)
+    
+    # Add grid and legend
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
     plt.legend(loc='upper right', fontsize=12)
     
-    # Save the plot with a dpi of 300
-    os.makedirs(output_dir, exist_ok=True)
-    plt.savefig(f"{output_dir}/loss_plot.png", dpi=300)
-    plt.savefig(f"{output_dir}/loss_plot.eps", dpi=300)
-
-    # Close the plot to avoid memory issues
-    plt.close()
+    # Save combined plot
+    plt.savefig(f"{output_dir}/autoencoder_loss_combined.eps", dpi=300, bbox_inches='tight')
+    plt.savefig(f"{output_dir}/autoencoder_loss_combined.png", dpi=300, bbox_inches='tight')
+    
+    # Close plots to avoid memory issues
+    plt.close('all')
+    
+    print(f"Autoencoder loss plots saved to {output_dir}")
 
 
 def save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, contra_losses, 

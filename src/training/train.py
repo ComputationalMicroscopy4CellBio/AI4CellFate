@@ -11,8 +11,8 @@ from sklearn.metrics import confusion_matrix
 
 
 # STAGE 1: Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
-def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator=None):
-    """Train the adversarial autoencoder."""
+def train_autoencoder(config, x_train, x_val=None, y_val=None, encoder=None, decoder=None, discriminator=None):
+    """Train the adversarial autoencoder with optional validation monitoring."""
     
     # Set random seeds for reproducibility
     config = convert_namespace_to_dict(config)
@@ -37,6 +37,10 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
     # Placeholder for storing losses
     reconstruction_losses = []
     adversarial_losses = []
+    
+    # Validation losses
+    val_reconstruction_losses = []
+    val_adversarial_losses = []
 
     # Initial losses
     lambda_recon = config['lambda_recon'] # 5
@@ -95,6 +99,36 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
             epoch_reconstruction_losses.append(lambda_recon * recon_loss)
             epoch_adversarial_losses.append(lambda_adv * adv_loss)
         
+        # Compute validation losses if validation data is provided
+        if x_val is not None:
+            val_batch_size = min(config['batch_size'], len(x_val))
+            val_recon_losses_epoch = []
+            val_adv_losses_epoch = []
+            
+            for val_batch_start in range(0, len(x_val), val_batch_size):
+                val_batch_end = min(val_batch_start + val_batch_size, len(x_val))
+                val_image_batch = x_val[val_batch_start:val_batch_end]
+                
+                # Forward pass for validation (no training)
+                val_image_batch_expanded = tf.expand_dims(val_image_batch, axis=-1)
+                val_z_imgs = encoder(val_image_batch_expanded, training=False)
+                val_recon_imgs = decoder(val_z_imgs, training=False)
+                
+                # Validation reconstruction loss
+                val_recon_loss = ms_ssim_loss(val_image_batch_expanded, val_recon_imgs)
+                
+                # Validation adversarial loss
+                val_real_y = 0.9 * np.ones((val_batch_end - val_batch_start, 1))
+                val_z_discriminator_out = discriminator(val_z_imgs, training=False)
+                val_adv_loss = bce_loss(val_real_y, val_z_discriminator_out)
+                
+                val_recon_losses_epoch.append(lambda_recon * val_recon_loss)
+                val_adv_losses_epoch.append(lambda_adv * val_adv_loss)
+            
+            # Store validation losses for the epoch
+            val_reconstruction_losses.append(np.mean(val_recon_losses_epoch))
+            val_adversarial_losses.append(np.mean(val_adv_losses_epoch))
+        
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
         avg_adv_loss = np.mean(epoch_adversarial_losses)
@@ -103,11 +137,23 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
         adversarial_losses.append(avg_adv_loss)
 
         # Print and save results at the end of each epoch
-        print(f"Epoch {epoch + 1}/{config['epochs']}: "
-              f"Reconstruction loss: {avg_recon_loss:.4f}, "
-              f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
+        if x_val is not None:
+            print(f"Epoch {epoch + 1}/{config['epochs']}: "
+                  f"Train - Recon: {avg_recon_loss:.4f}, Adv: {avg_adv_loss:.4f} | "
+                  f"Val - Recon: {val_reconstruction_losses[-1]:.4f}, Adv: {val_adversarial_losses[-1]:.4f}")
+        else:
+            print(f"Epoch {epoch + 1}/{config['epochs']}: "
+                  f"Reconstruction loss: {avg_recon_loss:.4f}, "
+                  f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
     
-    save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, output_dir="./results/loss_plots/autoencoder")
+    # Save loss plots with validation losses if available
+    if x_val is not None:
+        save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, 
+                                   val_reconstruction_losses, val_adversarial_losses,
+                                   output_dir="./results/loss_plots/autoencoder")
+    else:
+        save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, 
+                                   output_dir="./results/loss_plots/autoencoder")
 
     return {
         'encoder': encoder,
@@ -115,6 +161,8 @@ def train_autoencoder(config, x_train, encoder=None, decoder=None, discriminator
         'discriminator': discriminator,
         'recon_loss': reconstruction_losses,
         'adv_loss': adversarial_losses,
+        'val_recon_loss': val_reconstruction_losses if x_val is not None else None,
+        'val_adv_loss': val_adversarial_losses if x_val is not None else None
     }
 
 

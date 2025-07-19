@@ -102,7 +102,7 @@ class CrossValidation:
         
         # STAGE 1: Train Autoencoder
         print("Stage 1: Training Autoencoder...")
-        autoencoder_results = train_autoencoder(config_autoencoder, x_fold_train)
+        autoencoder_results = train_autoencoder(config_autoencoder, x_fold_train, x_fold_val, y_fold_val)
         encoder = autoencoder_results['encoder']
         decoder = autoencoder_results['decoder']
         discriminator = autoencoder_results['discriminator']
