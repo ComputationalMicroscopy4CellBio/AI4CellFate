@@ -11,7 +11,7 @@ from sklearn.metrics import confusion_matrix
 
 
 # STAGE 1: Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
-def train_autoencoder(config, x_train, x_val=None, y_val=None, encoder=None, decoder=None, discriminator=None):
+def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, discriminator=None):
     """Train the adversarial autoencoder with optional validation monitoring."""
     
     # Set random seeds for reproducibility

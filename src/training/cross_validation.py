@@ -153,6 +153,11 @@ class CrossValidation:
         val_recall = recall_score(y_test_, test_pred, average='weighted')
         val_f1 = f1_score(y_test_, test_pred, average='weighted')
         val_confusion = confusion_matrix(y_test_, test_pred)
+
+        class_sums = val_confusion.sum(axis=1, keepdims=True)
+        conf_matrix_normalized = val_confusion / class_sums
+        mean_diagonal = np.mean(np.diag(conf_matrix_normalized))
+        precison_cm = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
         
         print(f"Fold {fold_num + 1} Validation Results:")
         print(f"  Accuracy: {val_accuracy:.4f}")
@@ -170,7 +175,9 @@ class CrossValidation:
                 'precision': val_precision,
                 'recall': val_recall,
                 'f1_score': val_f1,
-                'confusion_matrix': val_confusion.tolist()
+                'confusion_matrix': val_confusion.tolist(),
+                'mean_diagonal': mean_diagonal,
+                'precison_cm': precison_cm
             },
             'models': {
                 'encoder': final_encoder,
@@ -198,7 +205,9 @@ class CrossValidation:
                     'precision': val_precision,
                     'recall': val_recall,
                     'f1_score': val_f1,
-                    'confusion_matrix': val_confusion.tolist()
+                    'confusion_matrix': val_confusion.tolist(),
+                    'mean_diagonal': mean_diagonal,
+                    'precison_cm': precison_cm
                 }
             }, f, indent=2)
         
@@ -273,6 +282,8 @@ class CrossValidation:
         precisions = [fold['validation_metrics']['precision'] for fold in self.fold_results]
         recalls = [fold['validation_metrics']['recall'] for fold in self.fold_results]
         f1_scores = [fold['validation_metrics']['f1_score'] for fold in self.fold_results]
+        mean_diagonals = [fold['validation_metrics']['mean_diagonal'] for fold in self.fold_results]
+        precison_cms = [fold['validation_metrics']['precison_cm'] for fold in self.fold_results]
         
         # Calculate statistics
         cv_results = {
@@ -290,7 +301,9 @@ class CrossValidation:
             'fold_balanced_accuracies': balanced_accuracies,
             'fold_precisions': precisions,
             'fold_recalls': recalls,
-            'fold_f1_scores': f1_scores
+            'fold_f1_scores': f1_scores,
+            'fold_mean_diagonals': mean_diagonals,
+            'fold_precison_cms': precison_cms
         }
         
         # Print results
@@ -319,8 +332,8 @@ class CrossValidation:
         """
         fig, axes = plt.subplots(2, 3, figsize=(18, 12))
         
-        metrics = ['accuracy', 'balanced_accuracy', 'precision', 'recall', 'f1_score']
-        titles = ['Accuracy', 'Balanced Accuracy', 'Precision', 'Recall', 'F1-Score']
+        metrics = ['accuracy', 'balanced_accuracy', 'precision', 'recall', 'f1_score', 'mean_diagonal', 'precison_cm']
+        titles = ['Accuracy', 'Balanced Accuracy', 'Precision', 'Recall', 'F1-Score', 'Mean Diagonal', 'Precision Confusion Matrix']
         
         for i, (metric, title) in enumerate(zip(metrics, titles)):
             ax = axes[i//3, i%3]
@@ -331,6 +344,10 @@ class CrossValidation:
                 fold_values = cv_results['fold_balanced_accuracies']
             elif metric == 'f1_score':
                 fold_values = cv_results['fold_f1_scores']
+            elif metric == 'mean_diagonal':
+                fold_values = cv_results['fold_mean_diagonals']
+            elif metric == 'precison_cm':
+                fold_values = cv_results['fold_precison_cms']
             else:
                 fold_values = cv_results[f'fold_{metric}s']
             mean_val = cv_results[f'mean_{metric}']
