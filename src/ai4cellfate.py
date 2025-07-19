@@ -91,7 +91,7 @@ def main():
     save_model_weights_to_disk(encoder, decoder, discriminator, output_dir="./results/models/autoencoder_cov")
 
     # Evaluate the trained model (store latent space and reconstructed images)
-    evaluate_model(lambda_ae_cov_results['encoder'], lambda_ae_cov_results['decoder'], x_train, y_train, output_dir="./results/optimisation/autoencoder_cov")
+    evaluate_model(lambda_ae_cov_results['encoder'], lambda_ae_cov_results['decoder'], augmented_x_train, augmented_y_train, output_dir="./results/optimisation/autoencoder_cov")
     
 
 if __name__ == '__main__':
