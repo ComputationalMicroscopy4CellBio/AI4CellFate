@@ -2,14 +2,22 @@ import numpy as np
 from .training.train import *
 from .evaluation.evaluate import evaluate_model
 from .utils import *
+from .preprocessing.preprocessing_functions import augment_dataset, augmentations
 
 # Function to load data
 def load_data():
     """Load training and testing data."""
     # TODO: replace with data loader
 
-    x_train = np.load('./data/images/train_images_augmented.npy')[:,0,:,:]
-    y_train = np.load('./data/labels/train_labels_augmented.npy')
+    # Augmented data
+    # x_train = np.load('./data/images/train_images_augmented.npy')[:,0,:,:]
+    # y_train = np.load('./data/labels/train_labels_augmented.npy')
+    # x_test = np.load('./data/images/test_time_norm.npy')[:,0,:,:]
+    # y_test = np.load('./data/labels/test_labels.npy')
+
+    # Non augmented data
+    x_train = np.load('./data/images/train_no_aug_time_norm.npy')[:,0,:,:]  
+    y_train = np.load('./data/labels/train_labels.npy')  
     x_test = np.load('./data/images/test_time_norm.npy')[:,0,:,:]
     y_test = np.load('./data/labels/test_labels.npy')
     
@@ -38,13 +46,25 @@ def main():
         'lambda_adv': 1,
     }
 
-    lambda_autoencoder_results = train_autoencoder(config_autoencoder, x_train)
+    # Split training data into train and validation sets
+    x_train_, x_val, y_train_, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
+
+    # Augment training set
+    augmented_x_train, augmented_y_train = augment_dataset(
+                x_train_, 
+                y_train_, 
+                augmentations, 
+                augment_times=5,
+                seed=42
+            )
+
+    lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val)
     encoder = lambda_autoencoder_results['encoder']
     decoder = lambda_autoencoder_results['decoder']
     discriminator = lambda_autoencoder_results['discriminator']
 
     # Evaluate the trained model (store latent space and reconstructed images)
-    evaluate_model(encoder, decoder, x_train, y_train, output_dir="./results/optimisation/autoencoder")
+    evaluate_model(encoder, decoder, augmented_x_train, augmented_y_train, output_dir="./results/optimisation/autoencoder")
 
     ##### STAGE 2#####
     # Train AI4CellFate: Autoencoder + Covariance + Contrastive (Engineered Latent Space)
@@ -62,7 +82,7 @@ def main():
         'lambda_contra': 8,
     }
  
-    lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, x_train, y_train, x_test, y_test) 
+    lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test) 
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
     discriminator = lambda_ae_cov_results['discriminator']
