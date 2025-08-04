@@ -31,6 +31,17 @@ def main():
     # Load data
     x_train, x_test, y_train, y_test = load_data() 
 
+     # Split training data into train and validation sets
+    x_train_, x_val, y_train_, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
+
+    # Augment training set
+    augmented_x_train, augmented_y_train = augment_dataset(
+                x_train_, 
+                y_train_, 
+                augmentations, 
+                augment_times=5,
+                seed=42
+            )
 
     ##### STAGE 1 #####
     # Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
@@ -45,18 +56,6 @@ def main():
         'lambda_recon': 5,
         'lambda_adv': 1,
     }
-
-    # Split training data into train and validation sets
-    x_train_, x_val, y_train_, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
-
-    # Augment training set
-    augmented_x_train, augmented_y_train = augment_dataset(
-                x_train_, 
-                y_train_, 
-                augmentations, 
-                augment_times=5,
-                seed=42
-            )
 
     lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val)
     encoder = lambda_autoencoder_results['encoder']
