@@ -69,7 +69,6 @@ class Encoder:
 
         z = SpectralNormalization(Dense(self.latent_dim))(X)
         z = GaussianNoise(stddev=self.gaussian_noise_std)(z)
-        z = BatchNormalization()(z)
 
         encoder_model = Model(enc_input, z, name='encoder') 
 
