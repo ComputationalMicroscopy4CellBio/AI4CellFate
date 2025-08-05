@@ -254,6 +254,94 @@ class Evaluation:
 
         return kl_divergences
 
+def save_interpretations(decoder, latent_space, output_dir, num_steps=7):
+    """
+    Generate and save synthetic cells by perturbing latent features for interpretability.
+    
+    Args:
+        decoder: Trained decoder model (Keras)
+        latent_space (np.ndarray): Latent representations from training data (num_samples, latent_dim)
+        output_dir (str): Directory to save the interpretation plots
+        num_steps (int): Number of perturbation steps for each latent dimension
+    """
+    print("Generating synthetic cells through latent feature perturbation...")
+    
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Get latent space statistics from training data
+    latent_min = latent_space.min(axis=0)
+    latent_max = latent_space.max(axis=0)
+    latent_dim = latent_space.shape[1]
+    
+    # Create baseline latent vector (mean of training data)
+    baseline_latent = latent_space.mean(axis=0)
+    
+    # Create figure
+    fig, axes = plt.subplots(latent_dim, num_steps, figsize=(num_steps*2, latent_dim*2))
+    
+    # Handle case where latent_dim = 1 (axes would be 1D)
+    if latent_dim == 1:
+        axes = axes.reshape(1, -1)
+    
+    # Store all reconstructions to find global vmin/vmax
+    all_reconstructions = []
+    
+    for dim in range(latent_dim):
+        # Create perturbation values from min to max of this dimension
+        perturbations = np.linspace(latent_min[dim], latent_max[dim], num_steps)
+        
+        for i, value in enumerate(perturbations):
+            # Create perturbed latent vector
+            perturbed_latent = baseline_latent.copy()
+            perturbed_latent[dim] = value
+            
+            # Reshape for model input (add batch dimension)
+            perturbed_latent_batch = perturbed_latent.reshape(1, -1)
+            
+            # Generate synthetic image
+            synthetic_image = decoder.predict(perturbed_latent_batch, verbose=0)
+            all_reconstructions.append(synthetic_image[0])  # Remove batch dimension
+    
+    # Find global min/max for consistent colorbar
+    all_reconstructions = np.array(all_reconstructions)
+    vmin = 0.25
+    vmax = all_reconstructions.max()
+    
+    # Plot with consistent colorbar
+    recon_idx = 0
+    for dim in range(latent_dim):
+        perturbations = np.linspace(latent_min[dim], latent_max[dim], num_steps)
+        
+        for i, value in enumerate(perturbations):
+            # Get the reconstruction
+            img_np = all_reconstructions[recon_idx]
+            
+            # Show image (squeeze to remove channel dimension if needed)
+            if len(img_np.shape) == 3 and img_np.shape[2] == 1:
+                img_np = img_np[:, :, 0]
+            
+            im = axes[dim, i].imshow(img_np, cmap='viridis', vmin=vmin, vmax=vmax)
+            axes[dim, i].set_title(f'{value:.2f}', fontsize=8)
+            axes[dim, i].axis('off')
+            
+            # Add dimension label to first image of each row
+            if i == 0:
+                axes[dim, i].set_ylabel(f'Dim {dim}', rotation=90, fontsize=10)
+            
+            recon_idx += 1
+    
+    # Add a single colorbar for the entire figure
+    fig.colorbar(im, ax=axes, shrink=0.6, aspect=30)
+    plt.tight_layout()
+    
+    # Save the plot
+    output_path = os.path.join(output_dir, "synthetic_cells_latent_traversal.png")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print(f"Synthetic cell traversals saved to '{output_path}'")
+
 def evaluate_model(encoder, decoder, x_train, y_train, output_dir):
     """Evaluate the trained model."""
     evaluator = Evaluation(output_dir)
@@ -269,3 +357,6 @@ def evaluate_model(encoder, decoder, x_train, y_train, output_dir):
 
     # KL divergence
     print("KL Divergences in each dimension: ", evaluator.calculate_kl_divergence(z_imgs))
+    
+    # Generate latent feature interpretations
+    save_interpretations(decoder, z_imgs, output_dir)

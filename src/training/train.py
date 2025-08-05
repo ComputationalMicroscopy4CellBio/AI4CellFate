@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from matplotlib import pyplot as plt
 from ..utils import *
-from ..evaluation.evaluate import calculate_kl_divergence
+from ..evaluation.evaluate import calculate_kl_divergence, save_interpretations
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
 from scipy.spatial.distance import euclidean
@@ -335,7 +335,11 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             # Train the classifier
             classifier = mlp_classifier(latent_dim=config['latent_dim'])
             classifier.compile(loss='sparse_categorical_crossentropy', optimizer= tf.keras.optimizers.Adam(learning_rate=config['learning_rate']), metrics=['accuracy'])
-            x_val_, x_test_, y_val_, y_test_ = train_test_split(z_imgs_test, y_test, test_size=0.5, random_state=42) 
+            #x_val_, x_test_, y_val_, y_test_ = train_test_split(z_imgs_test, y_test, test_size=0.5, random_state=42) 
+            x_val_ = z_imgs_val
+            y_val_ = y_val
+            x_test_ = z_imgs_test
+            y_test_ = y_test
             history = classifier.fit(z_imgs_train, y_train, batch_size=config['batch_size'], epochs=50, validation_data=(x_val_, y_val_)) # 
 
             y_pred = classifier.predict(x_test_)
@@ -356,7 +360,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             if mean_diagonal > 0.65 and precison >= 0.7: # and distance > 0.9
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
-                if epoch > 50: 
+                if epoch > 0: 
                     print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 
@@ -380,6 +384,11 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, contra_losses, 
                            val_reconstruction_losses, val_adversarial_losses, val_cov_losses, val_contra_losses,
                            output_dir="./results/loss_plots/autoencoder_cov")
+
+    # Generate and save latent feature interpretations
+    print("Generating latent feature interpretations...")
+    z_train_final = encoder.predict(x_train, verbose=0)
+    save_interpretations(decoder, z_train_final, output_dir="./results/interpretations")
 
     return {
         'encoder': encoder,
