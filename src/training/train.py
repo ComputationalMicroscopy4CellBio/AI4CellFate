@@ -232,6 +232,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 adv_loss = bce_loss(real_y, z_discriminator_out)
 
                 # Covariance loss
+                # cov_loss = covariance_loss_new(z_imgs)
                 z_std_loss, diag_cov_mean = covariance_loss(z_imgs)
                 cov_loss = 0.5 * diag_cov_mean + 0.5 * z_std_loss 
 
