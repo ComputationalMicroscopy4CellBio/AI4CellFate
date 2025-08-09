@@ -9,19 +9,15 @@ def load_data():
     """Load training and testing data."""
     # TODO: replace with data loader
 
-    # Augmented data
-    # x_train = np.load('./data/images/train_images_augmented.npy')[:,0,:,:]
-    # y_train = np.load('./data/labels/train_labels_augmented.npy')
-    # x_test = np.load('./data/images/test_time_norm.npy')[:,0,:,:]
-    # y_test = np.load('./data/labels/test_labels.npy')
-
-    # Non augmented data
-    x_train = np.load('./data/images/train_no_aug_time_norm.npy')[:,0,:,:]  
-    y_train = np.load('./data/labels/train_labels.npy')  
-    x_test = np.load('./data/images/test_time_norm.npy')[:,0,:,:]
-    y_test = np.load('./data/labels/test_labels.npy')
+    # Augmented data - FIRST FRAME ONLY
+    augmented_x_train = np.load('./data/final_split/augmented_x_train.npy')
+    augmented_y_train = np.load('./data/final_split/augmented_y_train.npy')
+    x_val = np.load('./data/final_split/x_val.npy')
+    y_val = np.load('./data/final_split/y_val.npy')
+    x_test = np.load('./data/final_split/x_test.npy')
+    y_test = np.load('./data/final_split/y_test.npy')
     
-    return x_train, x_test, y_train, y_test
+    return augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test
 
 
 # Main function
@@ -29,26 +25,14 @@ def main():
     """Main function with the full workflow of the AI4CellFate project."""
     
     # Load data
-    x_train, x_test, y_train, y_test = load_data() 
-
-     # Split training data into train and validation sets
-    x_train_, x_val, y_train_, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
-
-    # Augment training set
-    augmented_x_train, augmented_y_train = augment_dataset(
-                x_train_, 
-                y_train_, 
-                augmentations, 
-                augment_times=5,
-                seed=42
-            )
+    augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test = load_data() 
 
     ##### STAGE 1 #####
     # Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
 
     config_autoencoder = {
         'batch_size': 30,
-        'epochs': 30,
+        'epochs': 25, #25 was ok
         'learning_rate': 0.0001,
         'seed': 42,
         'latent_dim': 2,
@@ -77,7 +61,7 @@ def main():
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 2,
-        'lambda_cov': 1,
+        'lambda_cov': 10,
         'lambda_contra': 8,
     }
  
