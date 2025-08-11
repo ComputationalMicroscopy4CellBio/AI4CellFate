@@ -32,7 +32,7 @@ def main():
 
     config_autoencoder = {
         'batch_size': 30,
-        'epochs': 30, #25 was ok
+        'epochs': 35, 
         'learning_rate': 0.0001,
         'seed': 42,
         'latent_dim': 2,
