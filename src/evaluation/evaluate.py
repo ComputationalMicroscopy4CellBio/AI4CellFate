@@ -2,7 +2,9 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
-from scipy.stats import norm, entropy
+from scipy.stats import norm, entropy, shapiro, kstest, jarque_bera, anderson
+from scipy import stats
+import seaborn as sns
 
 def calculate_kl_divergence(latent_samples, num_bins=100):
         """
@@ -40,6 +42,71 @@ def calculate_kl_divergence(latent_samples, num_bins=100):
             kl_divergences.append(kl_div)
 
         return kl_divergences
+
+def shapiro_wilk_test(latent_samples):
+    """
+    Perform Shapiro-Wilk test for normality on each latent dimension.
+    
+    Args:
+        latent_samples (numpy.ndarray): Latent samples of shape (n_samples, latent_dim).
+    
+    Returns:
+        dict: Dictionary with statistics and p-values for each dimension.
+    """
+    results = {}
+    
+    for dim in range(latent_samples.shape[1]):
+        samples = latent_samples[:, dim]
+        # Shapiro-Wilk works best for samples <= 5000
+        if len(samples) > 5000:
+            samples = np.random.choice(samples, 5000, replace=False)
+        
+        statistic, p_value = shapiro(samples)
+        results[f'dim_{dim}'] = {
+            'statistic': statistic,
+            'p_value': p_value,
+            'is_normal': p_value > 0.05  # Standard significance level
+        }
+    
+    return results
+
+def plot_qq_plots(latent_samples, save_path=None):
+    """
+    Create Q-Q plots for each latent dimension against normal distribution.
+    
+    Args:
+        latent_samples (numpy.ndarray): Latent samples of shape (n_samples, latent_dim).
+        save_path (str, optional): Path to save the plot.
+    """
+    latent_dim = latent_samples.shape[1]
+    
+    # Create subplots
+    fig, axes = plt.subplots(1, latent_dim, figsize=(5*latent_dim, 5))
+    if latent_dim == 1:
+        axes = [axes]
+    
+    for dim in range(latent_dim):
+        samples = latent_samples[:, dim]
+        
+        # Create Q-Q plot
+        stats.probplot(samples, dist="norm", plot=axes[dim])
+        axes[dim].set_title(f'Q-Q Plot - Dimension {dim}')
+        axes[dim].grid(True, alpha=0.3)
+        
+        # Add R-squared value
+        _, (slope, intercept, r) = stats.probplot(samples, dist="norm")
+        axes[dim].text(0.05, 0.95, f'R² = {r**2:.3f}', transform=axes[dim].transAxes, 
+                      bbox=dict(boxstyle="round", facecolor='wheat', alpha=0.8))
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Q-Q plots saved to {save_path}")
+    else:
+        plt.show()
+
 
 def reconstruction_images(image_batch, recon_imgs, n=10):
         """Visualize and save original and reconstructed images for a specific epoch."""
@@ -218,41 +285,8 @@ class Evaluation:
         print(f"Latent space visualization saved to {output_path}")
 
     def calculate_kl_divergence(self, latent_samples, num_bins=100):
-        """
-        Calculate the KL divergence between the empirical distribution of latent samples
-        and a standard Gaussian distribution.
-
-        Args:
-            latent_samples (numpy.ndarray): Latent samples of shape (n_samples, latent_dim).
-            num_bins (int): Number of bins to use for histogram estimation.
-
-        Returns:
-            list: KL divergence for each latent dimension.
-        """
-        kl_divergences = []
-
-        for dim in range(latent_samples.shape[1]):
-            # Get the samples for the current dimension
-            samples = latent_samples[:, dim]
-
-            # Compute histogram for the empirical distribution
-            hist, bin_edges = np.histogram(samples, bins=num_bins, density=True)
-            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-
-            # Compute the Gaussian PDF for the bin centers
-            gaussian_pdf = norm.pdf(bin_centers)
-
-            # Normalize both distributions
-            hist += 1e-10  # Avoid division by zero
-            hist /= np.sum(hist)  # Normalize histogram to make it a valid probability distribution
-            gaussian_pdf += 1e-10
-            gaussian_pdf /= np.sum(gaussian_pdf)
-
-            # Compute KL divergence
-            kl_div = entropy(hist, gaussian_pdf)
-            kl_divergences.append(kl_div)
-
-        return kl_divergences
+        """Use the standalone calculate_kl_divergence function."""
+        return calculate_kl_divergence(latent_samples, num_bins)
 
 def save_interpretations(decoder, latent_space, output_dir, num_steps=7):
     """
