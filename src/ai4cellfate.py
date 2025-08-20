@@ -10,12 +10,26 @@ def load_data():
     # TODO: replace with data loader
 
     # Augmented data - FIRST FRAME ONLY
-    augmented_x_train = np.load('./data/final_split/augmented_x_train.npy')
-    augmented_y_train = np.load('./data/final_split/augmented_y_train.npy')
-    x_val = np.load('./data/final_split/x_val.npy')
-    y_val = np.load('./data/final_split/y_val.npy')
-    x_test = np.load('./data/final_split/x_test.npy')
-    y_test = np.load('./data/final_split/y_test.npy')
+    # augmented_x_train = np.load('./data/final_split/augmented_x_train.npy')
+    # augmented_y_train = np.load('./data/final_split/augmented_y_train.npy')
+    # x_val = np.load('./data/final_split/x_val.npy')
+    # y_val = np.load('./data/final_split/y_val.npy')
+    # x_test = np.load('./data/final_split/x_test.npy')
+    # y_test = np.load('./data/final_split/y_test.npy')
+
+    augmented_x_train = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/first_gen_augmented_images.npy')
+    augmented_y_train = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/first_gen_augmented_labels.npy')
+    # x_val = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/first_gen_val_images.npy')
+    # y_val = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/first_gen_val_labels.npy')
+    second_gen_images = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/stretched_second_gen.npy')
+    second_gen_labels = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/second_gen_labels.npy')
+
+    x_val, x_test, y_val, y_test = train_test_split(
+    second_gen_images, second_gen_labels,
+    test_size=0.5,  # 50% of 40% = 20% of total
+    random_state=42,
+    stratify=second_gen_labels  # Keep class balance
+)
     
     return augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test
 
@@ -32,10 +46,10 @@ def main():
 
     config_autoencoder = {
         'batch_size': 30,
-        'epochs': 35, 
+        'epochs': 50, 
         'learning_rate': 0.0001,
         'seed': 42,
-        'latent_dim': 2,
+        'latent_dim': 3,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5,
         'lambda_adv': 1,
@@ -57,12 +71,12 @@ def main():
         'epochs': 100,
         'learning_rate': 0.001,
         'seed': 42,
-        'latent_dim': 2,
+        'latent_dim': 3,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 4,
         'lambda_cov': 1,
-        'lambda_contra': 8,
+        'lambda_contra': 20,
     }
  
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test) 

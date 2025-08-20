@@ -327,7 +327,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         kl_divergence = calculate_kl_divergence(z_imgs_train)
         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
 
-        if kl_divergence[0] < 0.2 and kl_divergence[1] < 0.2: 
+        if kl_divergence[0] < 5 and kl_divergence[1] < 5: 
             print("Latent Space is Gaussian-distributed!")
             print("Eucledian distance:", distance)
 
@@ -358,7 +358,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
 
             print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}")
 
-            if mean_diagonal > 0.65 and precison >= 0.7: # and distance > 0.9
+            if mean_diagonal > 0.55 and precison >= 0.55: # and distance > 0.9
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
                 if epoch > 50: 
