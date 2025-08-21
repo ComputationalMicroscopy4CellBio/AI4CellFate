@@ -17,19 +17,52 @@ def load_data():
     # x_test = np.load('./data/final_split/x_test.npy')
     # y_test = np.load('./data/final_split/y_test.npy')
 
-    augmented_x_train = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/first_gen_augmented_images.npy')
-    augmented_y_train = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/first_gen_augmented_labels.npy')
-    # x_val = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/first_gen_val_images.npy')
-    # y_val = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/first_gen_val_labels.npy')
+    first_gen_images = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/stretched_first_gen.npy')
+    first_gen_labels = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/first_gen_labels.npy')
     second_gen_images = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/stretched_second_gen.npy')
     second_gen_labels = np.load('/Users/inescunha/Documents/GitHub/AI4CellFate/data/second_generation/second_gen_labels.npy')
 
+#     augmented_x_train, augmented_y_train = augment_dataset(second_gen_images, second_gen_labels, augmentations)
+
+#     x_val, x_test, y_val, y_test = train_test_split(
+#     first_gen_images, first_gen_labels,
+#     test_size=0.5,  # 50% of 40% = 20% of total
+#     random_state=42,
+#     stratify=first_gen_labels  # Keep class balance
+# )
+
+    # Combine first and second generation data
+    combined_images = np.concatenate([first_gen_images, second_gen_images], axis=0)
+    combined_labels = np.concatenate([first_gen_labels, second_gen_labels], axis=0)
+
+    print(f"Combined dataset shape: {combined_images.shape}")
+    print(f"Combined labels shape: {combined_labels.shape}")
+    print(f"Label distribution: {np.bincount(combined_labels)}")
+
+    # First split: 60% train, 40% temp (which will be split into 20% val, 20% test)
+    x_train, x_temp, y_train, y_temp = train_test_split(
+        combined_images, combined_labels,
+        test_size=0.4,  # 40% for temp (val + test)
+        random_state=42,
+        stratify=combined_labels  # Keep class balance
+    )
+
+    # Second split: Split the temp 40% into 20% val and 20% test (50/50 split of temp)
     x_val, x_test, y_val, y_test = train_test_split(
-    second_gen_images, second_gen_labels,
-    test_size=0.5,  # 50% of 40% = 20% of total
-    random_state=42,
-    stratify=second_gen_labels  # Keep class balance
-)
+        x_temp, y_temp,
+        test_size=0.5,  # 50% of 40% = 20% of total for test, 20% for val
+        random_state=42,
+        stratify=y_temp  # Keep class balance
+    )
+
+    print(f"Train set: {x_train.shape[0]} samples ({x_train.shape[0]/len(combined_images)*100:.1f}%)")
+    print(f"Val set: {x_val.shape[0]} samples ({x_val.shape[0]/len(combined_images)*100:.1f}%)")
+    print(f"Test set: {x_test.shape[0]} samples ({x_test.shape[0]/len(combined_images)*100:.1f}%)")
+
+    # Augment only the training set
+    augmented_x_train, augmented_y_train = augment_dataset(x_train, y_train, augmentations)
+
+    print(f"Augmented train set: {augmented_x_train.shape[0]} samples")
     
     return augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test
 
@@ -46,7 +79,7 @@ def main():
 
     config_autoencoder = {
         'batch_size': 30,
-        'epochs': 50, 
+        'epochs': 40, 
         'learning_rate': 0.0001,
         'seed': 42,
         'latent_dim': 3,
@@ -76,7 +109,7 @@ def main():
         'lambda_recon': 6,
         'lambda_adv': 4,
         'lambda_cov': 1,
-        'lambda_contra': 20,
+        'lambda_contra': 12,
     }
  
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test) 

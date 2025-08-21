@@ -358,10 +358,10 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
 
             print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}")
 
-            if mean_diagonal > 0.55 and precison >= 0.55: # and distance > 0.9
+            if mean_diagonal > 0.65 and precison >= 0.65: # and distance > 0.9
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
-                if epoch > 50: 
+                if epoch > 1: 
                     print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 
