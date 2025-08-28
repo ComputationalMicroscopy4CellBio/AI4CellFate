@@ -109,7 +109,7 @@ def main():
         'lambda_recon': 6,
         'lambda_adv': 4,
         'lambda_cov': 1,
-        'lambda_contra': 12,
+        'lambda_contra': 20, #20, ldim 3, epoch13
     }
  
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test) 
