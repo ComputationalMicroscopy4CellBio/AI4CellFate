@@ -363,7 +363,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             if mean_diagonal >= 0.6 and f1_score >= 0.6: # and distance > 0.9 
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
-                if epoch > 10: 
+                if epoch > 37: 
                     print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 
