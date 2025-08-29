@@ -85,7 +85,7 @@ def main():
         'epochs': 40, 
         'learning_rate': 0.0001,
         'seed': 42,
-        'latent_dim': 3,
+        'latent_dim': 2,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5,
         'lambda_adv': 1,
@@ -107,11 +107,11 @@ def main():
         'epochs': 100,
         'learning_rate': 0.001,
         'seed': 42,
-        'latent_dim': 3,
+        'latent_dim': 2,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 4,
-        'lambda_cov': 1,
+        'lambda_cov': 2,
         'lambda_contra': 16, #20, ldim 3, epoch13
     }
  
