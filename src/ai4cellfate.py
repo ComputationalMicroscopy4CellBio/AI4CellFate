@@ -31,9 +31,12 @@ def load_data():
 #     stratify=first_gen_labels  # Keep class balance
 # )
 
+    combined_images = second_gen_images
+    combined_labels = second_gen_labels
+
     # Combine first and second generation data
-    combined_images = np.concatenate([first_gen_images, second_gen_images], axis=0)
-    combined_labels = np.concatenate([first_gen_labels, second_gen_labels], axis=0)
+    #combined_images = np.concatenate([first_gen_images, second_gen_images], axis=0)
+    #combined_labels = np.concatenate([first_gen_labels, second_gen_labels], axis=0)
 
     print(f"Combined dataset shape: {combined_images.shape}")
     print(f"Combined labels shape: {combined_labels.shape}")
@@ -109,7 +112,7 @@ def main():
         'lambda_recon': 6,
         'lambda_adv': 4,
         'lambda_cov': 1,
-        'lambda_contra': 20, #20, ldim 3, epoch13
+        'lambda_contra': 16, #20, ldim 3, epoch13
     }
  
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test) 

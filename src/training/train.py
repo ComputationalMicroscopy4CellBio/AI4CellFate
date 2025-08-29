@@ -359,10 +359,10 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             #f1_score = 2 * (precison * recall) / (precison + recall)
             print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}, Recall: {recall:.4f}")
 
-            if mean_diagonal > 0.62 and recall >= 0.62: # and distance > 0.9
+            if mean_diagonal >= 0.6 and recall >= 0.62: # and distance > 0.9
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
-                if epoch > 20: 
+                if epoch > 30: 
                     print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 
