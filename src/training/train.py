@@ -358,9 +358,9 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             #recall = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[0,1])
             recall_class_1 = conf_matrix_normalized[1,1] / (conf_matrix_normalized[1,0] + conf_matrix_normalized[1,1])
             f1_score = 2 * (precison * recall_class_1) / (precison + recall_class_1)
-            print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}, Recall: {recall_class_1:.4f}")
+            print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}, Recall: {recall_class_1:.4f}, F1 score: {f1_score:.4f}")
 
-            if mean_diagonal >= 0.6 and f1_score >= 0.6: # and distance > 0.9 
+            if mean_diagonal >= 0.6 and recall_class_1 >= 0.6: # and distance > 0.9 
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
                 if epoch > 37: 
