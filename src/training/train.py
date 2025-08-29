@@ -355,14 +355,15 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             conf_matrix_normalized = cm / class_sums
             mean_diagonal = np.mean(np.diag(conf_matrix_normalized))
             precison = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
-            recall = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[0,1])
+            #recall = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[0,1])
+            recall_class_1 = conf_matrix_normalized[1,1] / (conf_matrix_normalized[1,0] + conf_matrix_normalized[1,1])
             #f1_score = 2 * (precison * recall) / (precison + recall)
-            print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}, Recall: {recall:.4f}")
+            print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}, Recall: {recall_class_1:.4f}")
 
-            if mean_diagonal >= 0.6 and recall >= 0.62: # and distance > 0.9
+            if mean_diagonal >= 0.6 and recall_class_1 >= 0.6: # and distance > 0.9 
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
-                if epoch > 50: 
+                if epoch > 34: 
                     print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 

@@ -82,7 +82,7 @@ def main():
 
     config_autoencoder = {
         'batch_size': 30,
-        'epochs': 40, 
+        'epochs': 30, 
         'learning_rate': 0.0001,
         'seed': 42,
         'latent_dim': 2,
@@ -111,7 +111,7 @@ def main():
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 4,
-        'lambda_cov': 2,
+        'lambda_cov': 1,
         'lambda_contra': 16, #20, ldim 3, epoch13
     }
  
