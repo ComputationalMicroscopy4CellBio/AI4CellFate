@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from matplotlib import pyplot as plt
 from ..utils import *
-from ..evaluation.evaluate import calculate_kl_divergence, save_interpretations
+from ..evaluation.evaluate import calculate_kl_divergence, save_interpretations, save_confusion_matrix
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
 from scipy.spatial.distance import euclidean
@@ -167,7 +167,7 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
 
 
 # STAGE 2: Train AI4CellFate: Autoencoder + Covariance + Contrastive (Engineered Latent Space)
-def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_val, y_val, x_test, y_test):
+def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_val, y_val, x_test, y_test, output_dir="./results"):
     """Train the AI4CellFate model with the autoencoder, covariance, and contrastive loss."""
 
     config = convert_namespace_to_dict(config)
@@ -363,7 +363,11 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             if mean_diagonal >= 0.6 and recall_class_1 >= 0.6: # and distance > 0.9 
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
-                if epoch > 37: 
+                
+                # Save confusion matrix
+                save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
+
+                if epoch > 50: 
                     print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 
@@ -386,12 +390,12 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
     if save_loss_plot:
         save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, contra_losses, 
                            val_reconstruction_losses, val_adversarial_losses, val_cov_losses, val_contra_losses,
-                           output_dir="./results/loss_plots/autoencoder_cov")
+                           output_dir=f"{output_dir}/loss_plots")
 
     # Generate and save latent feature interpretations
     print("Generating latent feature interpretations...")
     z_train_final = encoder.predict(x_train, verbose=0)
-    save_interpretations(decoder, z_train_final, output_dir="./results/interpretations")
+    save_interpretations(decoder, z_train_final, output_dir=f"{output_dir}/interpretations")
 
     return {
         'encoder': encoder,

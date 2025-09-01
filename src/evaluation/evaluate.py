@@ -107,6 +107,40 @@ def plot_qq_plots(latent_samples, save_path=None):
     else:
         plt.show()
 
+def save_confusion_matrix(conf_matrix_normalized, output_dir, epoch):
+    """
+    Save confusion matrix as both plot and numpy array.
+    
+    Args:
+        conf_matrix_normalized (numpy.ndarray): Normalized confusion matrix
+        output_dir (str): Directory to save files
+        epoch (int): Current epoch number
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Save confusion matrix plot (clean, no annotations)
+    plt.figure(figsize=(8, 6))
+    plt.imshow(conf_matrix_normalized, interpolation='nearest', cmap=plt.cm.Blues, vmin=0, vmax=1)
+    plt.title('Confusion Matrix')
+    plt.colorbar()
+    tick_marks = np.arange(2)
+    plt.xticks(tick_marks, ['Fate 0', 'Fate 1'])
+    plt.yticks(tick_marks, ['Fate 0', 'Fate 1'])
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.tight_layout()
+    
+    # Save plot
+    conf_matrix_path = os.path.join(output_dir, f"confusion_matrix_epoch_{epoch}.png")
+    plt.savefig(conf_matrix_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Confusion matrix saved to {conf_matrix_path}")
+    
+    # Save confusion matrix values as .npy
+    conf_matrix_values_path = os.path.join(output_dir, f"confusion_matrix_values_epoch_{epoch}.npy")
+    np.save(conf_matrix_values_path, conf_matrix_normalized)
+    print(f"Confusion matrix values saved to {conf_matrix_values_path}")
+
 
 def reconstruction_images(image_batch, recon_imgs, n=10):
         """Visualize and save original and reconstructed images for a specific epoch."""
