@@ -384,7 +384,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     print("Classification accuracy is good! :)")
                     good_conditions_stop.append(epoch)
 
-                    if epoch > 10: 
+                    if epoch > 10 or epoch == config['epochs'] - 1: 
                         # Save confusion matrix
                         save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
                         
