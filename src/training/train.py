@@ -327,7 +327,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         kl_divergence = calculate_kl_divergence(z_imgs_train)
         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
 
-        if kl_divergence[0] < 5 and kl_divergence[1] < 5: 
+        if kl_divergence[0] < 1 and kl_divergence[1] < 1: 
             print("Latent Space is Gaussian-distributed!")
             print("Eucledian distance:", distance)
 
@@ -360,14 +360,13 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             f1_score = 2 * (precison * recall_class_1) / (precison + recall_class_1)
             print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}, Recall: {recall_class_1:.4f}, F1 score: {f1_score:.4f}")
 
-            if mean_diagonal >= 0.6 and recall_class_1 >= 0.6: # and distance > 0.9 
+            if mean_diagonal > 0.65 and precison >= 0.7: # and distance > 0.9 
                 print("Classification accuracy is good! :)")
                 good_conditions_stop.append(epoch)
-                
-                # Save confusion matrix
-                save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
 
-                if epoch > 50: 
+                if epoch > 10: 
+                    # Save confusion matrix
+                    save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
                     print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                     break
 
