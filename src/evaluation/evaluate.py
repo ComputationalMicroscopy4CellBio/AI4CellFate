@@ -268,19 +268,27 @@ class Evaluation:
         print(f"Top correlated features: {feat_0}, {feat_1}")
 
         # Scatter plot
-        scatter = plt.scatter(latent_space[:, feat_0], latent_space[:, feat_1], c=y_train, cmap='viridis', alpha=0.7)
-        plt.xlabel(f"Latent Variable {feat_0}")
-        plt.ylabel(f"Latent Variable {feat_1}")
-        plt.title("Latent Space")
-        plt.grid(True)
+        #scatter = plt.scatter(latent_space[:, feat_0], latent_space[:, feat_1], c=y_train, cmap='viridis', alpha=0.7)
+        plt.figure(figsize=(8, 6), dpi=300)
+        
+        plt.scatter(latent_space[y_train == feat_0][:, 0], latent_space[y_train == feat_0][:, 1], 
+            color='#648fff', label="Fate 0", alpha=1, edgecolors='k', linewidth=0.5, rasterized=True)  
+        plt.scatter(latent_space[y_train == feat_1][:, 0], latent_space[y_train == feat_1][:, 1], 
+            color='#dc267f', label="Fate 1", alpha=1, edgecolors='k', linewidth=0.5, rasterized=True)  
 
-        # Add legend
-        handles, _ = scatter.legend_elements()
-        plt.legend(handles, ['Fate 0', 'Fate 1'], title="Classes", loc="lower right")
+        plt.xlabel("Latent Feature 0 (z0)", fontsize=18, fontname="Arial")
+        plt.ylabel("Latent Feature 1 (z1)", fontsize=18, fontname="Arial")
+        plt.title("Latent Space", fontsize=20, fontname="Arial")
+
+        # Legend and grid
+        plt.legend(fontsize=14)
+        plt.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
 
         # Save the plot
-        output_path = os.path.join(epoch_dir, "latent_space.png")
-        plt.savefig(output_path, dpi=300)
+        output_path = os.path.join(epoch_dir, "latent_space.eps")
+        plt.savefig(output_path, dpi=600, bbox_inches="tight")
+        output_path_png = os.path.join(epoch_dir, "latent_space.png")
+        plt.savefig(output_path_png, dpi=600, bbox_inches="tight")
         plt.close()
         print(f"Latent space visualization saved to {output_path}")
 
