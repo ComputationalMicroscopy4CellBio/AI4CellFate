@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import os
 from matplotlib import pyplot as plt
 from ..utils import *
 from ..evaluation.evaluate import calculate_kl_divergence, save_interpretations, save_confusion_matrix
@@ -386,6 +387,21 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     if epoch > 10: 
                         # Save confusion matrix
                         save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
+                        
+                        # Save additional latent space analysis files
+                        # 1. Covariance matrix of latent features
+                        latent_cov_matrix = np.cov(z_imgs_train.T)
+                        np.save(os.path.join(output_dir, f"latent_covariance_matrix_epoch_{epoch}.npy"), latent_cov_matrix)
+                        
+                        # 2. Correlation coefficient matrix of latent features
+                        latent_corrcoef = np.corrcoef(z_imgs_train.T)
+                        np.save(os.path.join(output_dir, f"latent_correlation_matrix_epoch_{epoch}.npy"), latent_corrcoef)
+                        
+                        # 3. KL divergences for each dimension
+                        kl_divergences_array = np.array(kl_divergence)
+                        np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
+                        
+                        print(f"Saved latent analysis files: covariance, correlation, KL divergences for epoch {epoch}")
                         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
                         break
                             
