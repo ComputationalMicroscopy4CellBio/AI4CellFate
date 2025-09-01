@@ -11,7 +11,7 @@ from sklearn.metrics import confusion_matrix
 
 
 # STAGE 1: Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
-def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, discriminator=None):
+def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, discriminator=None, output_dir="./results"):
     """Train the adversarial autoencoder with optional validation monitoring."""
     
     # Set random seeds for reproducibility
@@ -150,10 +150,10 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
     if x_val is not None:
         save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, 
                                    val_reconstruction_losses, val_adversarial_losses,
-                                   output_dir="./results/loss_plots/autoencoder")
+                                   output_dir=f"{output_dir}/loss_plots_stage1")
     else:
         save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, 
-                                   output_dir="./results/loss_plots/autoencoder")
+                                   output_dir=f"{output_dir}/loss_plots_stage1")
 
     return {
         'encoder': encoder,
@@ -390,7 +390,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
     if save_loss_plot:
         save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, contra_losses, 
                            val_reconstruction_losses, val_adversarial_losses, val_cov_losses, val_contra_losses,
-                           output_dir=f"{output_dir}/loss_plots")
+                           output_dir=f"{output_dir}/loss_plots_stage2")
 
     # Generate and save latent feature interpretations
     print("Generating latent feature interpretations...")

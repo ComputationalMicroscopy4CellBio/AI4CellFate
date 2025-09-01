@@ -117,7 +117,7 @@ def main():
     output_base_dir = f"./results/{folder_name}"
     print(f"Saving results to: {output_base_dir}")
 
-    lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val)
+    lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, output_dir=output_base_dir)
     encoder = lambda_autoencoder_results['encoder']
     decoder = lambda_autoencoder_results['decoder']
     discriminator = lambda_autoencoder_results['discriminator']
