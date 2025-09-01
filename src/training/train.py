@@ -332,43 +332,69 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             print("Eucledian distance:", distance)
 
             # Compute classification accuracy and use it as a stopping criterion
+            try:
+                # Clear any existing TensorFlow session state
+                tf.keras.backend.clear_session()
+                
+                # Train the classifier with explicit memory cleanup
+                classifier = mlp_classifier(latent_dim=config['latent_dim'])
+                classifier.compile(
+                    loss='sparse_categorical_crossentropy', 
+                    optimizer=tf.keras.optimizers.Adam(learning_rate=config['learning_rate']), 
+                    metrics=['accuracy']
+                )
+                
+                # Prepare data
+                x_val_ = z_imgs_val
+                y_val_ = y_val
+                x_test_ = z_imgs_test
+                y_test_ = y_test
+                
+                # Train with original batch size (restored for consistency)
+                history = classifier.fit(
+                    z_imgs_train, y_train, 
+                    batch_size=config['batch_size'], 
+                    epochs=50, 
+                    validation_data=(x_val_, y_val_),
+                    verbose=0  # Reduce output
+                )
 
-            # Train the classifier
-            classifier = mlp_classifier(latent_dim=config['latent_dim'])
-            classifier.compile(loss='sparse_categorical_crossentropy', optimizer= tf.keras.optimizers.Adam(learning_rate=config['learning_rate']), metrics=['accuracy'])
-            #x_val_, x_test_, y_val_, y_test_ = train_test_split(z_imgs_test, y_test, test_size=0.5, random_state=42) 
-            x_val_ = z_imgs_val
-            y_val_ = y_val
-            x_test_ = z_imgs_test
-            y_test_ = y_test
-            history = classifier.fit(z_imgs_train, y_train, batch_size=config['batch_size'], epochs=50, validation_data=(x_val_, y_val_)) # 
+                y_pred = classifier.predict(x_test_, verbose=0)
+                threshold = 0.5
+                y_pred_classes = np.zeros_like(y_pred[:, 1])
+                y_pred_classes[y_pred[:, 1] > threshold] = 1  
 
-            y_pred = classifier.predict(x_test_)
-            threshold = 0.5
-            y_pred_classes = np.zeros_like(y_pred[:, 1])
-            y_pred_classes[y_pred[:, 1] > threshold] = 1  
+                # Calculate confusion matrix
+                cm = confusion_matrix(y_test_, y_pred_classes)
+                print("cm:", cm)
+                class_sums = cm.sum(axis=1, keepdims=True)
+                conf_matrix_normalized = cm / class_sums
+                mean_diagonal = np.mean(np.diag(conf_matrix_normalized))
+                precison = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
+                recall_class_1 = conf_matrix_normalized[1,1] / (conf_matrix_normalized[1,0] + conf_matrix_normalized[1,1])
+                f1_score = 2 * (precison * recall_class_1) / (precison + recall_class_1)
+                print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}, Recall: {recall_class_1:.4f}, F1 score: {f1_score:.4f}")
 
-            # Calculate confusion matrix
-            cm = confusion_matrix(y_test_, y_pred_classes)
-            print("cm:", cm)
-            class_sums = cm.sum(axis=1, keepdims=True)
-            conf_matrix_normalized = cm / class_sums
-            mean_diagonal = np.mean(np.diag(conf_matrix_normalized))
-            precison = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
-            #recall = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[0,1])
-            recall_class_1 = conf_matrix_normalized[1,1] / (conf_matrix_normalized[1,0] + conf_matrix_normalized[1,1])
-            f1_score = 2 * (precison * recall_class_1) / (precison + recall_class_1)
-            print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}, Recall: {recall_class_1:.4f}, F1 score: {f1_score:.4f}")
+                # Clean up classifier to prevent memory leaks
+                del classifier
+                tf.keras.backend.clear_session()
+                
+                if mean_diagonal > 0.65 and precison >= 0.7: # and distance > 0.9 
+                    print("Classification accuracy is good! :)")
+                    good_conditions_stop.append(epoch)
 
-            if mean_diagonal > 0.65 and precison >= 0.7: # and distance > 0.9 
-                print("Classification accuracy is good! :)")
-                good_conditions_stop.append(epoch)
-
-                if epoch > 10: 
-                    # Save confusion matrix
-                    save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
-                    print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
-                    break
+                    if epoch > 10: 
+                        # Save confusion matrix
+                        save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
+                        print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
+                        break
+                            
+            except Exception as e:
+                print(f"Classification failed at epoch {epoch}: {e}")
+                print("Continuing training without classification check...")
+                # Clean up in case of error
+                tf.keras.backend.clear_session()
+                continue
 
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)

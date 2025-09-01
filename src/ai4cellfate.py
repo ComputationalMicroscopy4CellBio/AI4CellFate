@@ -76,8 +76,6 @@ def main():
     # Evaluate the trained model (store latent space and reconstructed images)
     evaluate_model(encoder, decoder, augmented_x_train, augmented_y_train, output_dir=f"{output_base_dir}/stage1")
     
-    #encoder, decoder, discriminator = load_model_weights_from_disk(f"{output_base_dir}/models_stage1")
-
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test, output_dir=output_base_dir) 
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
