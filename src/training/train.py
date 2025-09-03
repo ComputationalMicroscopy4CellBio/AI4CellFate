@@ -380,26 +380,26 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 del classifier
                 tf.keras.backend.clear_session()
                 
-                if (mean_diagonal > 0.6 and recall_class_1 >= 0.6 and distance > 0.5) or epoch == config['epochs'] - 1: # and distance > 0.9 
+                if (mean_diagonal >= 0.6 and recall_class_1 >= 0.7) or epoch == config['epochs'] - 1: # and distance > 0.9 
                     print("Classification accuracy is good! :)")
                     good_conditions_stop.append(epoch)
-
-                    if epoch >=9 or epoch == config['epochs'] - 1: 
-                        # Save confusion matrix
-                        save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
-                        
-                        # Save additional latent space analysis files
-                        # 1. Covariance matrix of latent features
-                        latent_cov_matrix = np.cov(z_imgs_train.T)
-                        np.save(os.path.join(output_dir, f"latent_covariance_matrix_epoch_{epoch}.npy"), latent_cov_matrix)
-                        
-                        # 2. Correlation coefficient matrix of latent features
-                        latent_corrcoef = np.corrcoef(z_imgs_train.T)
-                        np.save(os.path.join(output_dir, f"latent_correlation_matrix_epoch_{epoch}.npy"), latent_corrcoef)
-                        
-                        # 3. KL divergences for each dimension
-                        kl_divergences_array = np.array(kl_divergence)
-                        np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
+                    # Save confusion matrix
+                    save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
+                    
+                    # Save additional latent space analysis files
+                    # 1. Covariance matrix of latent features
+                    latent_cov_matrix = np.cov(z_imgs_train.T)
+                    np.save(os.path.join(output_dir, f"latent_covariance_matrix_epoch_{epoch}.npy"), latent_cov_matrix)
+                    
+                    # 2. Correlation coefficient matrix of latent features
+                    latent_corrcoef = np.corrcoef(z_imgs_train.T)
+                    np.save(os.path.join(output_dir, f"latent_correlation_matrix_epoch_{epoch}.npy"), latent_corrcoef)
+                    
+                    # 3. KL divergences for each dimension
+                    kl_divergences_array = np.array(kl_divergence)
+                    np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
+                    
+                    if (epoch >=9 or epoch == config['epochs'] - 1) and distance > 0.7: 
                         
                         print(f"Saved latent analysis files: covariance, correlation, KL divergences for epoch {epoch}")
                         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])

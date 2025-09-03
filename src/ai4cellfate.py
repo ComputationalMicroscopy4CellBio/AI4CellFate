@@ -61,7 +61,7 @@ def main():
         'lambda_recon': 6,
         'lambda_adv': 4,
         'lambda_cov': 1,
-        'lambda_contra': 8, 
+        'lambda_contra': 14, 
     }
 
     # Create parameter-based folder name
