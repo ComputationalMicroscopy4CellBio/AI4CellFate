@@ -75,10 +75,10 @@ def run_latent_dimension_studies():
     augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test = load_data()
     
     # Define seeds to test
-    seeds = [42, 43, 44]
+    seeds = [45, 46, 48]
     
     # Define latent dimensions to test
-    latent_dims = [3, 4, 5, 6, 7, 8, 9, 10, 13, 20, 30, 50, 100, 400]
+    latent_dims = [3, 4, 5, 6, 7, 8, 9, 10, 13, 20, 30, 50, 100]
     
     # Define base configuration (your current best config with original latent_dim=2)
     base_config_autoencoder = {
