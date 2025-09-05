@@ -18,37 +18,30 @@ class MLPHyperparameterOptimizer:
     def __init__(self, random_state=42):
         self.random_state = random_state
         self.results = []
+        self.best_global_params = None
         
     def create_mlp_model(self, 
                         input_dim: int,
                         hidden_layers: List[int],
                         dropout_rate: float = 0.3,
-                        l2_reg: float = 1e-4,
-                        activation: str = 'relu',
-                        batch_norm: bool = True,
                         learning_rate: float = 0.001):
         """
         Create MLP model with specified architecture.
+        Always uses ReLU activation and batch norm only at input.
         """
         def build_model():
             model = Sequential()
             model.add(layers.Input(shape=(input_dim,)))
             
-            # batch normalization at input
-            if batch_norm:
-                model.add(layers.BatchNormalization())
+            # Batch normalization at input (always applied)
+            model.add(layers.BatchNormalization())
             
-            # Hidden layers
+            # Hidden layers (always use ReLU activation, no L2 regularization)
             for i, units in enumerate(hidden_layers):
-                model.add(layers.Dense(
-                    units, 
-                    activation=activation,
-                    kernel_regularizer=tf.keras.regularizers.l2(l2_reg)
-                ))
+                model.add(layers.Dense(units, activation='relu'))
                 model.add(layers.Dropout(dropout_rate))
-                
             
-            # Output layer
+            # Output layer (softmax for classification)
             model.add(layers.Dense(2, activation='softmax'))
             
             # Compile model
@@ -85,15 +78,10 @@ class MLPHyperparameterOptimizer:
             ],
             
             # Regularization
-            'dropout_rate': [0.1, 0.2, 0.3, 0.4, 0.5],
-            'l2_reg': [1e-5, 1e-4, 1e-3, 1e-2],
+            'dropout_rate': [0.2, 0.3, 0.4, 0.5],
             
             # Training parameters
-            'learning_rate': [0.0001, 0.0005, 0.001, 0.005, 0.01],
-            
-            # Architecture options
-            'activation': ['relu', 'tanh', 'swish'],
-            'batch_norm': [True, False],
+            'learning_rate': [0.0001, 0.001, 0.01],
         }
     
     def optimize_single_feature_pair(self, 
@@ -254,6 +242,238 @@ class MLPHyperparameterOptimizer:
             'feature_names': feature_names
         }
     
+    def find_global_best_hyperparameters(self,
+                                       train_features: np.ndarray,
+                                       train_labels: np.ndarray,
+                                       test_features: np.ndarray,
+                                       test_labels: np.ndarray,
+                                       feature_names: List[str],
+                                       sample_pairs: int = 10,
+                                       cv_folds: int = 5,
+                                       max_combinations: int = 50,
+                                       epochs: int = 100,
+                                       batch_size: int = 32,
+                                       verbose: int = 1) -> Dict[str, Any]:
+        """
+        Find globally best hyperparameters using a sample of feature pairs.
+        """
+        
+        # Combine original train and test data
+        X_combined = np.vstack([train_features, test_features])
+        y_combined = np.hstack([train_labels, test_labels])
+        
+        # Generate feature pairs and sample them
+        feature_pairs = list(itertools.combinations(range(len(feature_names)), 2))
+        np.random.seed(self.random_state)
+        sampled_pairs = np.random.choice(len(feature_pairs), min(sample_pairs, len(feature_pairs)), replace=False)
+        
+        if verbose > 0:
+            print(f"🔍 Finding global best hyperparameters using {len(sampled_pairs)} feature pairs...")
+        
+        all_results = []
+        
+        for i, pair_idx in enumerate(sampled_pairs):
+            f1, f2 = feature_pairs[pair_idx]
+            if verbose > 0:
+                print(f"  Testing pair {i+1}/{len(sampled_pairs)}: [{feature_names[f1]}, {feature_names[f2]}]")
+            
+            # Extract feature pair data
+            X_pair = X_combined[:, [f1, f2]]
+            pair_feature_names = [feature_names[f1], feature_names[f2]]
+            
+            # Optimize this feature pair
+            result = self.optimize_single_feature_pair(
+                X_pair, y_combined, pair_feature_names,
+                cv_folds, max_combinations, epochs, batch_size, verbose-1
+            )
+            
+            if result['all_results']:
+                all_results.extend(result['all_results'])
+        
+        if not all_results:
+            raise ValueError("No successful hyperparameter optimization results!")
+        
+        # Sort all results by CV accuracy and find global best
+        all_results.sort(key=lambda x: x['cv_accuracy_mean'], reverse=True)
+        global_best = all_results[0]
+        
+        self.best_global_params = global_best['params']
+        
+        if verbose > 0:
+            print(f"🏆 Global best hyperparameters found:")
+            print(f"   CV Accuracy: {global_best['cv_accuracy_mean']:.4f} ± {global_best['cv_accuracy_std']:.4f}")
+            print(f"   Parameters: {self.best_global_params}")
+        
+        return {
+            'best_params': self.best_global_params,
+            'best_cv_score': global_best['cv_accuracy_mean'],
+            'all_sampled_results': all_results,
+            'sampled_pairs': [(feature_pairs[i][0], feature_pairs[i][1]) for i in sampled_pairs]
+        }
+    
+    def evaluate_all_pairs_with_fixed_model(self,
+                                           train_features: np.ndarray,
+                                           train_labels: np.ndarray,
+                                           test_features: np.ndarray,
+                                           test_labels: np.ndarray,
+                                           feature_names: List[str],
+                                           fixed_params: Dict[str, Any] = None,
+                                           cv_folds: int = 5,
+                                           epochs: int = 100,
+                                           batch_size: int = 32,
+                                           verbose: int = 1) -> Dict[str, Any]:
+        """
+        Evaluate all feature pairs using fixed hyperparameters for fair comparison.
+        """
+        
+        # Use global best params if none provided
+        if fixed_params is None:
+            if self.best_global_params is None:
+                raise ValueError("No global best parameters found! Run find_global_best_hyperparameters first.")
+            fixed_params = self.best_global_params
+        
+        # Combine original train and test data
+        X_combined = np.vstack([train_features, test_features])
+        y_combined = np.hstack([train_labels, test_labels])
+        
+        # Generate all feature pairs
+        feature_pairs = list(itertools.combinations(range(len(feature_names)), 2))
+        
+        if verbose > 0:
+            print(f"🔬 Evaluating all {len(feature_pairs)} feature pairs with fixed architecture:")
+            print(f"   Architecture: {fixed_params}")
+        
+        # Storage for results
+        pair_names = []
+        cv_accuracies = []
+        cv_stds = []
+        test_accuracies = []
+        test_precisions = []
+        confusion_matrices = []
+        
+        # Class weights
+        class_weights = compute_class_weight('balanced', classes=np.unique(y_combined), y=y_combined)
+        class_weight_dict = dict(enumerate(class_weights))
+        
+        # Cross-validation setup
+        cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=self.random_state)
+        
+        for i, (f1, f2) in enumerate(feature_pairs):
+            pair_name = f"{feature_names[f1]} + {feature_names[f2]}"
+            pair_names.append(pair_name)
+            
+            if verbose > 0 and i % 10 == 0:
+                print(f"   Progress: {i+1}/{len(feature_pairs)} pairs...")
+            
+            # Extract feature pair data
+            X_pair = X_combined[:, [f1, f2]]
+            
+            # Split into development and test sets
+            X_dev, X_test_final, y_dev, y_test_final = train_test_split(
+                X_pair, y_combined, test_size=0.2, stratify=y_combined, random_state=self.random_state
+            )
+            
+            try:
+                # Cross-validation on development set
+                fold_scores = []
+                
+                for fold, (train_idx, val_idx) in enumerate(cv.split(X_dev, y_dev)):
+                    X_fold_train, X_fold_val = X_dev[train_idx], X_dev[val_idx]
+                    y_fold_train, y_fold_val = y_dev[train_idx], y_dev[val_idx]
+                    
+                    # Clear session
+                    tf.keras.backend.clear_session()
+                    
+                    # Create model with fixed params
+                    model_builder = self.create_mlp_model(input_dim=2, **fixed_params)
+                    model = model_builder()
+                    
+                    # Train model
+                    model.fit(
+                        X_fold_train, y_fold_train,
+                        validation_data=(X_fold_val, y_fold_val),
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        class_weight=class_weight_dict,
+                        verbose=0
+                    )
+                    
+                    # Evaluate on validation fold
+                    y_pred_proba = model.predict(X_fold_val, verbose=0)
+                    y_pred = np.argmax(y_pred_proba, axis=1)
+                    accuracy = accuracy_score(y_fold_val, y_pred)
+                    fold_scores.append(accuracy)
+                
+                # CV metrics
+                cv_acc_mean = np.mean(fold_scores)
+                cv_acc_std = np.std(fold_scores)
+                cv_accuracies.append(cv_acc_mean)
+                cv_stds.append(cv_acc_std)
+                
+                # Final model on full development set
+                tf.keras.backend.clear_session()
+                final_model = self.create_mlp_model(input_dim=2, **fixed_params)()
+                final_model.fit(
+                    X_dev, y_dev,
+                    epochs=epochs,
+                    batch_size=batch_size,
+                    class_weight=class_weight_dict,
+                    verbose=0
+                )
+                
+                # Test set evaluation
+                y_test_pred_proba = final_model.predict(X_test_final, verbose=0)
+                y_test_pred = np.argmax(y_test_pred_proba, axis=1)
+                
+                # Calculate metrics
+                test_acc = accuracy_score(y_test_final, y_test_pred)
+                cm = confusion_matrix(y_test_final, y_test_pred)
+                cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+                
+                # Accuracy from normalized confusion matrix (mean diagonal)
+                test_acc_from_cm = np.mean(np.diag(cm_normalized))
+                
+                # Precision for class 0 (as per your convention)
+                precision_class0 = cm_normalized[0, 0] / (cm_normalized[0, 0] + cm_normalized[1, 0]) if (cm_normalized[0, 0] + cm_normalized[1, 0]) > 0 else 0
+                
+                test_accuracies.append(test_acc_from_cm)
+                test_precisions.append(precision_class0)
+                confusion_matrices.append(cm_normalized)
+                
+            except Exception as e:
+                if verbose > 0:
+                    print(f"   Failed pair {pair_name}: {e}")
+                cv_accuracies.append(np.nan)
+                cv_stds.append(np.nan)
+                test_accuracies.append(np.nan)
+                test_precisions.append(np.nan)
+                confusion_matrices.append(np.full((2, 2), np.nan))
+        
+        # Convert to numpy arrays
+        cv_accuracies = np.array(cv_accuracies)
+        cv_stds = np.array(cv_stds)
+        test_accuracies = np.array(test_accuracies)
+        test_precisions = np.array(test_precisions)
+        confusion_matrices = np.array(confusion_matrices)
+        
+        if verbose > 0:
+            print(f"✅ Completed evaluation of all feature pairs!")
+            print(f"   Mean CV accuracy: {np.nanmean(cv_accuracies):.4f} ± {np.nanstd(cv_accuracies):.4f}")
+            print(f"   Mean test accuracy: {np.nanmean(test_accuracies):.4f} ± {np.nanstd(test_accuracies):.4f}")
+            print(f"   Best test accuracy: {np.nanmax(test_accuracies):.4f}")
+        
+        return {
+            'pair_names': pair_names,
+            'cv_accuracies': cv_accuracies,
+            'cv_stds': cv_stds,
+            'test_accuracies': test_accuracies,
+            'test_precisions': test_precisions,
+            'confusion_matrices': confusion_matrices,
+            'fixed_params': fixed_params,
+            'feature_pairs': feature_pairs,
+            'feature_names': feature_names
+        }
+    
     def optimize_all_feature_pairs(self,
                                  train_features: np.ndarray,
                                  train_labels: np.ndarray,
@@ -354,6 +574,114 @@ class MLPHyperparameterOptimizer:
         print(f"Best params: {results['best_overall']['params']}")
 
 
+def run_fair_feature_comparison(train_features: np.ndarray,
+                               train_labels: np.ndarray,
+                               test_features: np.ndarray,
+                               test_labels: np.ndarray,
+                               feature_names: List[str],
+                               sample_pairs_for_optimization: int = 15,
+                               cv_folds: int = 5,
+                               max_combinations: int = 50,
+                               epochs: int = 50,
+                               batch_size: int = 32,
+                               random_state: int = 42,
+                               save_results: bool = True,
+                               verbose: int = 1) -> Dict[str, Any]:
+    """
+    Run fair comparison of all feature pairs using the same optimized model architecture.
+    
+    This is a two-step process:
+    1. Find globally best hyperparameters using a sample of feature pairs
+    2. Evaluate all feature pairs using the same fixed architecture for fair comparison
+    
+    Args:
+        train_features: Training feature matrix (n_samples, n_features)
+        train_labels: Training labels (n_samples,)
+        test_features: Test feature matrix (n_samples, n_features)  
+        test_labels: Test labels (n_samples,)
+        feature_names: List of feature names
+        sample_pairs_for_optimization: Number of feature pairs to sample for hyperparameter optimization
+        cv_folds: Number of cross-validation folds
+        max_combinations: Maximum hyperparameter combinations to try
+        epochs: Training epochs per model
+        batch_size: Training batch size
+        random_state: Random seed
+        save_results: Whether to save results as numpy arrays
+        verbose: Verbosity level (0=silent, 1=progress, 2=detailed)
+    
+    Returns:
+        Dictionary containing all results including numpy arrays
+    """
+    
+    optimizer = MLPHyperparameterOptimizer(random_state=random_state)
+    
+    if verbose > 0:
+        print("🚀 FAIR FEATURE PAIR COMPARISON")
+        print("=" * 50)
+        print("Step 1: Finding globally best hyperparameters...")
+    
+    # Step 1: Find globally best hyperparameters
+    global_optimization = optimizer.find_global_best_hyperparameters(
+        train_features, train_labels, test_features, test_labels,
+        feature_names, sample_pairs_for_optimization, cv_folds, 
+        max_combinations, epochs, batch_size, verbose
+    )
+    
+    if verbose > 0:
+        print("\nStep 2: Evaluating all feature pairs with fixed architecture...")
+    
+    # Step 2: Evaluate all pairs with fixed architecture
+    evaluation_results = optimizer.evaluate_all_pairs_with_fixed_model(
+        train_features, train_labels, test_features, test_labels,
+        feature_names, global_optimization['best_params'],
+        cv_folds, epochs, batch_size, verbose
+    )
+    
+    # Save results as numpy arrays
+    if save_results:
+        np.save('feature_pair_names.npy', evaluation_results['pair_names'])
+        np.save('feature_pair_cv_accuracies.npy', evaluation_results['cv_accuracies'])
+        np.save('feature_pair_cv_stds.npy', evaluation_results['cv_stds'])
+        np.save('feature_pair_test_accuracies.npy', evaluation_results['test_accuracies'])
+        np.save('feature_pair_test_precisions.npy', evaluation_results['test_precisions'])
+        np.save('feature_pair_confusion_matrices.npy', evaluation_results['confusion_matrices'])
+        
+        if verbose > 0:
+            print("\n💾 Saved results as numpy arrays:")
+            print("   - feature_pair_names.npy")
+            print("   - feature_pair_cv_accuracies.npy")
+            print("   - feature_pair_cv_stds.npy")
+            print("   - feature_pair_test_accuracies.npy")
+            print("   - feature_pair_test_precisions.npy")
+            print("   - feature_pair_confusion_matrices.npy")
+    
+    # Combine results
+    final_results = {
+        'global_optimization': global_optimization,
+        'evaluation_results': evaluation_results,
+        'best_global_params': global_optimization['best_params'],
+        'numpy_arrays': {
+            'pair_names': evaluation_results['pair_names'],
+            'cv_accuracies': evaluation_results['cv_accuracies'],
+            'cv_stds': evaluation_results['cv_stds'],
+            'test_accuracies': evaluation_results['test_accuracies'],
+            'test_precisions': evaluation_results['test_precisions'],
+            'confusion_matrices': evaluation_results['confusion_matrices']
+        }
+    }
+    
+    if verbose > 0:
+        print(f"\n🎯 SUMMARY:")
+        print(f"   Total feature pairs evaluated: {len(evaluation_results['pair_names'])}")
+        print(f"   Best CV accuracy: {np.nanmax(evaluation_results['cv_accuracies']):.4f}")
+        print(f"   Best test accuracy: {np.nanmax(evaluation_results['test_accuracies']):.4f}")
+        best_idx = np.nanargmax(evaluation_results['test_accuracies'])
+        print(f"   Best feature pair: {evaluation_results['pair_names'][best_idx]}")
+        print(f"   Architecture used: {global_optimization['best_params']}")
+    
+    return final_results
+
+
 def run_hyperparameter_optimization(train_features: np.ndarray,
                                    train_labels: np.ndarray,
                                    test_features: np.ndarray,
@@ -366,33 +694,10 @@ def run_hyperparameter_optimization(train_features: np.ndarray,
                                    random_state: int = 42,
                                    verbose: int = 1) -> Dict[str, Any]:
     """
-    Convenience function to run hyperparameter optimization.
-    
-    Args:
-        train_features: Training feature matrix (n_samples, n_features)
-        train_labels: Training labels (n_samples,)
-        test_features: Test feature matrix (n_samples, n_features)  
-        test_labels: Test labels (n_samples,)
-        feature_names: List of feature names
-        cv_folds: Number of cross-validation folds
-        max_combinations: Maximum hyperparameter combinations to try per feature pair
-        epochs: Training epochs per model
-        batch_size: Training batch size
-        random_state: Random seed
-        verbose: Verbosity level (0=silent, 1=progress, 2=detailed)
-    
-    Returns:
-        Dictionary containing optimization results
+    Legacy function - use run_fair_feature_comparison instead for fair comparison.
     """
-    
-    optimizer = MLPHyperparameterOptimizer(random_state=random_state)
-    
-    results = optimizer.optimize_all_feature_pairs(
+    return run_fair_feature_comparison(
         train_features, train_labels, test_features, test_labels,
-        feature_names, cv_folds, max_combinations, epochs, batch_size, verbose
+        feature_names, 15, cv_folds, max_combinations, epochs, 
+        batch_size, random_state, True, verbose
     )
-    
-    if verbose > 0:
-        optimizer.print_summary(results)
-    
-    return results
