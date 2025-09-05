@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.utils.class_weight import compute_class_weight
-from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score
 from tensorflow.keras import layers, Sequential
 import itertools
 from typing import Dict, List, Tuple, Any
@@ -165,8 +165,12 @@ class MLPHyperparameterOptimizer:
                     y_pred_proba = model.predict(X_fold_val, verbose=0)
                     y_pred = np.argmax(y_pred_proba, axis=1)
                     
-                    # Calculate metrics
-                    accuracy = accuracy_score(y_fold_val, y_pred)
+                    # Calculate metrics from confusion matrix only
+                    cm = confusion_matrix(y_fold_val, y_pred)
+                    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+                    
+                    # Accuracy as mean diagonal of normalized confusion matrix
+                    accuracy = np.mean(np.diag(cm_normalized))
                     fold_scores.append(accuracy)
                     fold_predictions.extend(y_pred)
                     fold_true_labels.extend(y_fold_val)
@@ -194,15 +198,19 @@ class MLPHyperparameterOptimizer:
                 y_test_pred_proba = final_model.predict(X_test, verbose=0)
                 y_test_pred = np.argmax(y_test_pred_proba, axis=1)
                 
-                # Calculate test metrics
-                test_accuracy = accuracy_score(y_test, y_test_pred)
-                test_precision = precision_score(y_test, y_test_pred, average='weighted', zero_division=0)
-                test_recall = recall_score(y_test, y_test_pred, average='weighted', zero_division=0)
-                test_f1 = f1_score(y_test, y_test_pred, average='weighted', zero_division=0)
-                
-                # Confusion matrix
+                # Calculate test metrics from confusion matrix only
                 cm = confusion_matrix(y_test, y_test_pred)
                 cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+                
+                # Accuracy as mean diagonal of normalized confusion matrix
+                test_accuracy = np.mean(np.diag(cm_normalized))
+                
+                # Precision for class 0 (as per your convention)
+                test_precision = cm_normalized[0, 0] / (cm_normalized[0, 0] + cm_normalized[1, 0]) if (cm_normalized[0, 0] + cm_normalized[1, 0]) > 0 else 0
+                
+                # Keep other metrics for compatibility
+                test_recall = recall_score(y_test, y_test_pred, average='weighted', zero_division=0)
+                test_f1 = f1_score(y_test, y_test_pred, average='weighted', zero_division=0)
                 
                 # Store results
                 result = {
@@ -401,7 +409,11 @@ class MLPHyperparameterOptimizer:
                     # Evaluate on validation fold
                     y_pred_proba = model.predict(X_fold_val, verbose=0)
                     y_pred = np.argmax(y_pred_proba, axis=1)
-                    accuracy = accuracy_score(y_fold_val, y_pred)
+                    
+                    # Calculate accuracy from confusion matrix only
+                    cm = confusion_matrix(y_fold_val, y_pred)
+                    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+                    accuracy = np.mean(np.diag(cm_normalized))
                     fold_scores.append(accuracy)
                 
                 # CV metrics
@@ -425,18 +437,17 @@ class MLPHyperparameterOptimizer:
                 y_test_pred_proba = final_model.predict(X_test_final, verbose=0)
                 y_test_pred = np.argmax(y_test_pred_proba, axis=1)
                 
-                # Calculate metrics
-                test_acc = accuracy_score(y_test_final, y_test_pred)
+                # Calculate metrics from confusion matrix only
                 cm = confusion_matrix(y_test_final, y_test_pred)
                 cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
                 
                 # Accuracy from normalized confusion matrix (mean diagonal)
-                test_acc_from_cm = np.mean(np.diag(cm_normalized))
+                test_accuracy = np.mean(np.diag(cm_normalized))
                 
                 # Precision for class 0 (as per your convention)
                 precision_class0 = cm_normalized[0, 0] / (cm_normalized[0, 0] + cm_normalized[1, 0]) if (cm_normalized[0, 0] + cm_normalized[1, 0]) > 0 else 0
                 
-                test_accuracies.append(test_acc_from_cm)
+                test_accuracies.append(test_accuracy)
                 test_precisions.append(precision_class0)
                 confusion_matrices.append(cm_normalized)
                 
@@ -616,7 +627,7 @@ def run_fair_feature_comparison(train_features: np.ndarray,
     optimizer = MLPHyperparameterOptimizer(random_state=random_state)
     
     if verbose > 0:
-        print("🚀 FAIR FEATURE PAIR COMPARISON")
+        print("🚀 FEATURE PAIR COMPARISON")
         print("=" * 50)
         print("Step 1: Finding globally best hyperparameters...")
     

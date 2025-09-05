@@ -40,7 +40,7 @@ def run_tabular_hyperparameter_optimization(train_tracks_features,
         test_features=test_tracks_features,
         test_labels=test_labels,
         feature_names=feature_names,
-        sample_pairs_for_optimization=15,  # Use 15 pairs to find best architecture
+        sample_pairs_for_optimization=10,  # Use 15 pairs to find best architecture
         cv_folds=5,                        # 5-fold cross-validation
         max_combinations=50,               # Test 50 hyperparameter combinations
         epochs=50,                         # Train each model for 50 epochs
