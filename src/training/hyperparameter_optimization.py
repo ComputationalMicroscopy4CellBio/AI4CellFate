@@ -64,24 +64,24 @@ class MLPHyperparameterOptimizer:
             # Architecture variations
             'hidden_layers': [
                 [16],           # Single layer - small
-                [32],           # Single layer - medium  
-                [64],           # Single layer - large
-                [16, 8],        # Two layers - small
-                [32, 16],       # Two layers - medium
-                [64, 32],       # Two layers - large
-                [32, 16, 8],    # Three layers - medium
-                [64, 32, 16],   # Three layers - large
-                [128, 64, 32],  # Three layers - extra large
-                [16, 16],       # Equal layers - small
-                [32, 32],       # Equal layers - medium
-                [64, 64],       # Equal layers - large
+                # [32],           # Single layer - medium  
+                # [64],           # Single layer - large
+                # [16, 8],        # Two layers - small
+                # [32, 16],       # Two layers - medium
+                # [64, 32],       # Two layers - large
+                # [32, 16, 8],    # Three layers - medium
+                # [64, 32, 16],   # Three layers - large
+                # [128, 64, 32],  # Three layers - extra large
+                # [16, 16],       # Equal layers - small
+                # [32, 32],       # Equal layers - medium
+                # [64, 64],       # Equal layers - large
             ],
             
             # Regularization
-            'dropout_rate': [0.2, 0.3, 0.4, 0.5],
+            'dropout_rate': [0.2], #[0.2, 0.3, 0.4, 0.5],
             
             # Training parameters
-            'learning_rate': [0.0001, 0.001, 0.01],
+            'learning_rate': [0.0001, 0.001], #, 0.01
         }
     
     def optimize_single_feature_pair(self, 
@@ -205,7 +205,7 @@ class MLPHyperparameterOptimizer:
                 # Accuracy as mean diagonal of normalized confusion matrix
                 test_accuracy = np.mean(np.diag(cm_normalized))
                 
-                # Precision for class 0 (as per your convention)
+                # Precision for class 0 
                 test_precision = cm_normalized[0, 0] / (cm_normalized[0, 0] + cm_normalized[1, 0]) if (cm_normalized[0, 0] + cm_normalized[1, 0]) > 0 else 0
                 
                 # Keep other metrics for compatibility
@@ -289,10 +289,17 @@ class MLPHyperparameterOptimizer:
             X_pair = X_combined[:, [f1, f2]]
             pair_feature_names = [feature_names[f1], feature_names[f2]]
             
+            # Split combined data back into train/test for this method
+            split_idx = len(train_features)  # Original train size
+            X_train_pair = X_pair[:split_idx]
+            y_train_pair = y_combined[:split_idx]
+            X_test_pair = X_pair[split_idx:]
+            y_test_pair = y_combined[split_idx:]
+            
             # Optimize this feature pair
             result = self.optimize_single_feature_pair(
-                X_pair, y_combined, pair_feature_names,
-                cv_folds, max_combinations, epochs, batch_size, verbose-1
+                X_train_pair, y_train_pair, X_test_pair, y_test_pair,
+                pair_feature_names, cv_folds, max_combinations, epochs, batch_size, verbose-1
             )
             
             if result['all_results']:
