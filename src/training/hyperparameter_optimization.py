@@ -64,24 +64,19 @@ class MLPHyperparameterOptimizer:
             # Architecture variations
             'hidden_layers': [
                 [16],           # Single layer - small
-                # [32],           # Single layer - medium  
-                # [64],           # Single layer - large
-                # [16, 8],        # Two layers - small
-                # [32, 16],       # Two layers - medium
-                # [64, 32],       # Two layers - large
-                # [32, 16, 8],    # Three layers - medium
-                # [64, 32, 16],   # Three layers - large
-                # [128, 64, 32],  # Three layers - extra large
-                # [16, 16],       # Equal layers - small
-                # [32, 32],       # Equal layers - medium
-                # [64, 64],       # Equal layers - large
+                [32],           # Single layer - medium  
+                [16, 8],        # Two layers - small
+                [32, 16],       # Two layers - medium
+                [32, 16, 8],    # Three layers - medium
+                [16, 16],       # Equal layers - small
+                [32, 32],       # Equal layers - medium
             ],
             
             # Regularization
-            'dropout_rate': [0.2], #[0.2, 0.3, 0.4, 0.5],
+            'dropout_rate': [0.3, 0.4, 0.5], #[0.2, 0.3, 0.4, 0.5],
             
             # Training parameters
-            'learning_rate': [0.0001, 0.001], #, 0.01
+            'learning_rate': [0.0001, 0.001, 0.01], #, 0.01
         }
     
     def optimize_single_feature_pair(self, 

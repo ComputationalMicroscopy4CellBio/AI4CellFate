@@ -54,69 +54,79 @@ def run_tabular_hyperparameter_optimization(train_tracks_features,
 
 def analyze_optimization_results(results):
     """
-    Analyze and visualize the hyperparameter optimization results.
-    """
-    import matplotlib.pyplot as plt
-    import pandas as pd
+    Analyze the hyperparameter optimization results and create a summary DataFrame.
     
-    # Extract results for analysis
+    Args:
+        results: Dictionary returned from run_fair_feature_comparison
+        
+    Returns:
+        pandas.DataFrame: Summary of results for each feature pair
+    """
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
+    # Extract results for analysis from the new format
     all_results = []
-    for key, result in results['all_results'].items():
-        if result['all_results']:  # Check if optimization succeeded
-            best_result = result['all_results'][0]  # Best result for this feature pair
+    
+    # Get data from the new results structure
+    pair_names = results['pair_names']
+    cv_accuracies = results['cv_accuracies']
+    cv_stds = results['cv_stds']
+    test_accuracies = results['test_accuracies']
+    test_precisions = results['test_precisions']
+    
+    # Get the fixed architecture used
+    best_params = results['best_global_params']
+    
+    for i, pair_name in enumerate(pair_names):
+        # Skip failed pairs (NaN values)
+        if not (np.isnan(cv_accuracies[i]) or np.isnan(test_accuracies[i])):
             all_results.append({
-                'feature_pair': ' + '.join(result['feature_names']),
-                'cv_accuracy': best_result['cv_accuracy_mean'],
-                'cv_std': best_result['cv_accuracy_std'],
-                'test_accuracy': best_result['test_accuracy'],
-                'test_f1': best_result['test_f1'],
-                'hidden_layers': str(best_result['params']['hidden_layers']),
-                'dropout_rate': best_result['params']['dropout_rate'],
-                'learning_rate': best_result['params']['learning_rate'],
-                'l2_reg': best_result['params']['l2_reg'],
-                'activation': best_result['params']['activation'],
-                'batch_norm': best_result['params']['batch_norm']
+                'feature_pair': pair_name,
+                'cv_accuracy': cv_accuracies[i],
+                'cv_std': cv_stds[i],
+                'test_accuracy': test_accuracies[i],
+                'test_precision': test_precisions[i],
+                'hidden_layers': str(best_params['hidden_layers']),
+                'dropout_rate': best_params['dropout_rate'],
+                'learning_rate': best_params['learning_rate']
             })
     
-    # Create DataFrame for easy analysis
+    # Create DataFrame
     df = pd.DataFrame(all_results)
-    df = df.sort_values('cv_accuracy', ascending=False)
     
-    print("\n📊 DETAILED ANALYSIS")
+    if len(df) == 0:
+        print("❌ No successful optimization results found!")
+        return df
+    
+    # Sort by test accuracy (descending)
+    df = df.sort_values('test_accuracy', ascending=False).reset_index(drop=True)
+    
+    print(f"\n📊 HYPERPARAMETER OPTIMIZATION SUMMARY")
     print("=" * 60)
-    
-    # Top 10 feature pairs
-    print("\n🏆 Top 10 Feature Pairs:")
-    print(df[['feature_pair', 'cv_accuracy', 'test_accuracy', 'test_f1']].head(10).to_string(index=False))
-    
-    # Architecture analysis
-    print(f"\n🏗️  Architecture Analysis:")
-    print("Most common hidden layer configurations:")
-    print(df['hidden_layers'].value_counts().head(5))
-    
-    print(f"\nMost common dropout rates:")
-    print(df['dropout_rate'].value_counts().head(5))
-    
-    print(f"\nMost common learning rates:")  
-    print(df['learning_rate'].value_counts().head(5))
-    
-    # Performance statistics
-    print(f"\n📈 Performance Statistics:")
-    print(f"Mean CV accuracy: {df['cv_accuracy'].mean():.4f} ± {df['cv_accuracy'].std():.4f}")
-    print(f"Mean test accuracy: {df['test_accuracy'].mean():.4f} ± {df['test_accuracy'].std():.4f}")
-    print(f"Best CV accuracy: {df['cv_accuracy'].max():.4f}")
+    print(f"Total feature pairs analyzed: {len(df)}")
     print(f"Best test accuracy: {df['test_accuracy'].max():.4f}")
+    print(f"Best feature pair: {df.iloc[0]['feature_pair']}")
+    print(f"Mean test accuracy: {df['test_accuracy'].mean():.4f} ± {df['test_accuracy'].std():.4f}")
+    print(f"Architecture used: {best_params}")
+    
+    # Show top 10 results
+    print(f"\n🏆 TOP 10 FEATURE PAIRS:")
+    print("-" * 80)
+    for i, row in df.head(10).iterrows():
+        print(f"{i+1:2d}. {row['feature_pair']:30s} | Test Acc: {row['test_accuracy']:.4f} | CV: {row['cv_accuracy']:.4f}±{row['cv_std']:.4f}")
     
     # Plot results
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
     
     # 1. Top 20 feature pairs
     top_20 = df.head(20)
-    axes[0, 0].barh(range(len(top_20)), top_20['cv_accuracy'])
+    axes[0, 0].barh(range(len(top_20)), top_20['test_accuracy'])
     axes[0, 0].set_yticks(range(len(top_20)))
     axes[0, 0].set_yticklabels(top_20['feature_pair'], fontsize=8)
-    axes[0, 0].set_xlabel('CV Accuracy')
-    axes[0, 0].set_title('Top 20 Feature Pairs (CV Accuracy)')
+    axes[0, 0].set_xlabel('Test Accuracy')
+    axes[0, 0].set_title('Top 20 Feature Pairs (Test Accuracy)')
     axes[0, 0].invert_yaxis()
     
     # 2. CV vs Test accuracy
@@ -127,20 +137,19 @@ def analyze_optimization_results(results):
     axes[0, 1].set_ylabel('Test Accuracy')
     axes[0, 1].set_title('CV vs Test Accuracy')
     
-    # 3. Architecture frequency
-    arch_counts = df['hidden_layers'].value_counts().head(10)
-    axes[1, 0].bar(range(len(arch_counts)), arch_counts.values)
-    axes[1, 0].set_xticks(range(len(arch_counts)))
-    axes[1, 0].set_xticklabels(arch_counts.index, rotation=45, ha='right')
+    # 3. Test accuracy distribution
+    axes[1, 0].hist(df['test_accuracy'], bins=20, alpha=0.7, edgecolor='black')
+    axes[1, 0].axvline(df['test_accuracy'].mean(), color='red', linestyle='--', label=f'Mean: {df["test_accuracy"].mean():.3f}')
+    axes[1, 0].set_xlabel('Test Accuracy')
     axes[1, 0].set_ylabel('Frequency')
-    axes[1, 0].set_title('Most Common Architectures')
+    axes[1, 0].set_title('Test Accuracy Distribution')
+    axes[1, 0].legend()
     
-    # 4. Hyperparameter correlation with performance
-    param_performance = df.groupby('dropout_rate')['cv_accuracy'].mean().sort_index()
-    axes[1, 1].plot(param_performance.index, param_performance.values, 'o-')
-    axes[1, 1].set_xlabel('Dropout Rate')
-    axes[1, 1].set_ylabel('Mean CV Accuracy')
-    axes[1, 1].set_title('Dropout Rate vs Performance')
+    # 4. Test accuracy vs precision
+    axes[1, 1].scatter(df['test_accuracy'], df['test_precision'], alpha=0.6)
+    axes[1, 1].set_xlabel('Test Accuracy')
+    axes[1, 1].set_ylabel('Test Precision (Class 0)')
+    axes[1, 1].set_title('Accuracy vs Precision')
     
     plt.tight_layout()
     plt.show()
