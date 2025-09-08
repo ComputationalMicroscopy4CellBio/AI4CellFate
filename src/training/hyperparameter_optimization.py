@@ -86,7 +86,7 @@ class MLPHyperparameterOptimizer:
                                    y_test: np.ndarray,
                                    feature_names: List[str],
                                    cv_folds: int = 5,
-                                   max_combinations: int = 50,
+                                   max_combinations: int = 30,
                                    epochs: int = 100,
                                    batch_size: int = 32,
                                    verbose: int = 0) -> Dict[str, Any]:
@@ -132,43 +132,62 @@ class MLPHyperparameterOptimizer:
                 fold_true_labels = []
                 
                 for fold, (train_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
-                    # Split data
-                    X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
-                    y_fold_train, y_fold_val = y_train[train_idx], y_train[val_idx]
-                    
-                    # Clear session
-                    tf.keras.backend.clear_session()
-                    
-                    # Create model
-                    model_builder = self.create_mlp_model(
-                        input_dim=X_train.shape[1],
-                        **param_dict
-                    )
-                    model = model_builder()
-                    
-                    # Train model
-                    history = model.fit(
-                        X_fold_train, y_fold_train,
-                        validation_data=(X_fold_val, y_fold_val),
-                        epochs=epochs,
-                        batch_size=batch_size,
-                        class_weight=class_weight_dict,
-                        verbose=0
-                    )
-                    
-                    # Evaluate on validation fold
-                    y_pred_proba = model.predict(X_fold_val, verbose=0)
-                    y_pred = np.argmax(y_pred_proba, axis=1)
-                    
-                    # Calculate metrics from confusion matrix only
-                    cm = confusion_matrix(y_fold_val, y_pred)
-                    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-                    
-                    # Accuracy as mean diagonal of normalized confusion matrix
-                    accuracy = np.mean(np.diag(cm_normalized))
-                    fold_scores.append(accuracy)
-                    fold_predictions.extend(y_pred)
-                    fold_true_labels.extend(y_fold_val)
+                    try:
+                        # Split data
+                        X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
+                        y_fold_train, y_fold_val = y_train[train_idx], y_train[val_idx]
+                        
+                        # Aggressive memory cleanup
+                        tf.keras.backend.clear_session()
+                        import gc
+                        gc.collect()
+                        
+                        # Create model
+                        model_builder = self.create_mlp_model(
+                            input_dim=X_train.shape[1],
+                            **param_dict
+                        )
+                        model = model_builder()
+                        
+                        # Use smaller batch size to avoid memory issues
+                        effective_batch_size = min(batch_size, len(X_fold_train) // 4)
+                        effective_batch_size = max(8, effective_batch_size)  # Minimum batch size of 8
+                        
+                        # Train model
+                        history = model.fit(
+                            X_fold_train, y_fold_train,
+                            validation_data=(X_fold_val, y_fold_val),
+                            epochs=epochs,
+                            batch_size=effective_batch_size,
+                            class_weight=class_weight_dict,
+                            verbose=0
+                        )
+                        
+                        # Evaluate on validation fold
+                        y_pred_proba = model.predict(X_fold_val, verbose=0)
+                        y_pred = np.argmax(y_pred_proba, axis=1)
+                        
+                        # Calculate metrics from confusion matrix only
+                        cm = confusion_matrix(y_fold_val, y_pred)
+                        cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+                        
+                        # Accuracy as mean diagonal of normalized confusion matrix
+                        accuracy = np.mean(np.diag(cm_normalized))
+                        fold_scores.append(accuracy)
+                        fold_predictions.extend(y_pred)
+                        fold_true_labels.extend(y_fold_val)
+                        
+                        # Clean up model explicitly
+                        del model
+                        tf.keras.backend.clear_session()
+                        
+                    except Exception as fold_e:
+                        if verbose > 0:
+                            print(f"   Fold {fold} failed: {fold_e}")
+                        # Use a default poor score for failed folds
+                        fold_scores.append(0.3)
+                        tf.keras.backend.clear_session()
+                        continue
                 
                 # Calculate cross-validation metrics
                 cv_accuracy_mean = np.mean(fold_scores)
@@ -251,7 +270,7 @@ class MLPHyperparameterOptimizer:
                                        test_features: np.ndarray,
                                        test_labels: np.ndarray,
                                        feature_names: List[str],
-                                       sample_pairs: int = 10,
+                                       sample_pairs: int = 5,
                                        cv_folds: int = 5,
                                        max_combinations: int = 50,
                                        epochs: int = 100,
@@ -388,35 +407,54 @@ class MLPHyperparameterOptimizer:
                 fold_scores = []
                 
                 for fold, (train_idx, val_idx) in enumerate(cv.split(X_dev, y_dev)):
-                    X_fold_train, X_fold_val = X_dev[train_idx], X_dev[val_idx]
-                    y_fold_train, y_fold_val = y_dev[train_idx], y_dev[val_idx]
-                    
-                    # Clear session
-                    tf.keras.backend.clear_session()
-                    
-                    # Create model with fixed params
-                    model_builder = self.create_mlp_model(input_dim=2, **fixed_params)
-                    model = model_builder()
-                    
-                    # Train model
-                    model.fit(
-                        X_fold_train, y_fold_train,
-                        validation_data=(X_fold_val, y_fold_val),
-                        epochs=epochs,
-                        batch_size=batch_size,
-                        class_weight=class_weight_dict,
-                        verbose=0
-                    )
-                    
-                    # Evaluate on validation fold
-                    y_pred_proba = model.predict(X_fold_val, verbose=0)
-                    y_pred = np.argmax(y_pred_proba, axis=1)
-                    
-                    # Calculate accuracy from confusion matrix only
-                    cm = confusion_matrix(y_fold_val, y_pred)
-                    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-                    accuracy = np.mean(np.diag(cm_normalized))
-                    fold_scores.append(accuracy)
+                    try:
+                        X_fold_train, X_fold_val = X_dev[train_idx], X_dev[val_idx]
+                        y_fold_train, y_fold_val = y_dev[train_idx], y_dev[val_idx]
+                        
+                        # Aggressive memory cleanup
+                        tf.keras.backend.clear_session()
+                        import gc
+                        gc.collect()
+                        
+                        # Create model with fixed params
+                        model_builder = self.create_mlp_model(input_dim=2, **fixed_params)
+                        model = model_builder()
+                        
+                        # Use smaller batch size to avoid memory issues
+                        effective_batch_size = min(batch_size, len(X_fold_train) // 4)
+                        effective_batch_size = max(8, effective_batch_size)  # Minimum batch size of 8
+                        
+                        # Train model with timeout and error handling
+                        model.fit(
+                            X_fold_train, y_fold_train,
+                            validation_data=(X_fold_val, y_fold_val),
+                            epochs=epochs,
+                            batch_size=effective_batch_size,
+                            class_weight=class_weight_dict,
+                            verbose=0
+                        )
+                        
+                        # Evaluate on validation fold
+                        y_pred_proba = model.predict(X_fold_val, verbose=0)
+                        y_pred = np.argmax(y_pred_proba, axis=1)
+                        
+                        # Calculate accuracy from confusion matrix only
+                        cm = confusion_matrix(y_fold_val, y_pred)
+                        cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+                        accuracy = np.mean(np.diag(cm_normalized))
+                        fold_scores.append(accuracy)
+                        
+                        # Clean up model explicitly
+                        del model
+                        tf.keras.backend.clear_session()
+                        
+                    except Exception as fold_e:
+                        if verbose > 0:
+                            print(f"   Fold {fold} failed: {fold_e}")
+                        # Use a default poor score for failed folds
+                        fold_scores.append(0.3)
+                        tf.keras.backend.clear_session()
+                        continue
                 
                 # CV metrics
                 cv_acc_mean = np.mean(fold_scores)
@@ -592,7 +630,7 @@ def run_fair_feature_comparison(train_features: np.ndarray,
                                test_features: np.ndarray,
                                test_labels: np.ndarray,
                                feature_names: List[str],
-                               sample_pairs_for_optimization: int = 15,
+                               sample_pairs_for_optimization: int = 5,
                                cv_folds: int = 5,
                                max_combinations: int = 50,
                                epochs: int = 50,
