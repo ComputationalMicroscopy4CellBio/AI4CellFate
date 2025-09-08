@@ -7,14 +7,19 @@ from .utils import *
 def load_original_data():
     """Load original training data (before augmentation) for cross-validation."""
     # Load original training data (not augmented)
-    x_train_orig = np.load('./data/images/train_no_aug_time_norm.npy')[:,0,:,:]  # Use original, not augmented
-    y_train_orig = np.load('./data/labels/train_labels.npy')  # Use original, not augmented
-    
+    x_train_orig = np.load('./data/final_split/x_train.npy') # Use original, not augmented
+    y_train_orig = np.load('./data/final_split/y_train.npy')  # Use original, not augmented
+    x_val = np.load('./data/final_split/x_val.npy')
+    y_val = np.load('./data/final_split/y_val.npy')
+    # Combine train and val
+    combined_x_train = np.concatenate((x_train_orig, x_val), axis=0)
+    combined_y_train = np.concatenate((y_train_orig, y_val), axis=0)
+
     # Load test data (this remains unchanged)
-    x_test = np.load('./data/images/test_time_norm.npy')[:,0,:,:]
-    y_test = np.load('./data/labels/test_labels.npy')
+    x_test = np.load('./data/final_split/x_test.npy')
+    y_test = np.load('./data/final_split/y_test.npy')
     
-    return x_train_orig, y_train_orig, x_test, y_test
+    return combined_x_train, combined_y_train, x_test, y_test
 
 def run_cross_validation(k_folds=5, random_state=42):
     """
@@ -39,7 +44,7 @@ def run_cross_validation(k_folds=5, random_state=42):
     # Configuration for autoencoder training
     config_autoencoder = {
         'batch_size': 30,
-        'epochs': 15,
+        'epochs': 35,
         'learning_rate': 0.0001,
         'seed': random_state,
         'latent_dim': 2,
@@ -58,7 +63,7 @@ def run_cross_validation(k_folds=5, random_state=42):
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 4,
-        'lambda_cov': 0.0001,
+        'lambda_cov': 1,
         'lambda_contra': 8,
     }
     

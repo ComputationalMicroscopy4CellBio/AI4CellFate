@@ -102,7 +102,7 @@ class CrossValidation:
         
         # STAGE 1: Train Autoencoder
         print("Stage 1: Training Autoencoder...")
-        autoencoder_results = train_autoencoder(config_autoencoder, x_fold_train, x_fold_val, y_fold_val)
+        autoencoder_results = train_autoencoder(config_autoencoder, x_fold_train, x_fold_val)
         encoder = autoencoder_results['encoder']
         decoder = autoencoder_results['decoder']
         discriminator = autoencoder_results['discriminator']
@@ -157,7 +157,13 @@ class CrossValidation:
         class_sums = val_confusion.sum(axis=1, keepdims=True)
         conf_matrix_normalized = val_confusion / class_sums
         mean_diagonal = np.mean(np.diag(conf_matrix_normalized))
-        precison_cm = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
+        
+        # Calculate precision from confusion matrix with safe division
+        denominator = conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0]
+        if denominator > 0:
+            precision_cm = conf_matrix_normalized[0,0] / denominator
+        else:
+            precision_cm = 0.0
         
         print(f"Fold {fold_num + 1} Validation Results:")
         print(f"  Accuracy: {val_accuracy:.4f}")
@@ -177,7 +183,7 @@ class CrossValidation:
                 'f1_score': val_f1,
                 'confusion_matrix': val_confusion.tolist(),
                 'mean_diagonal': mean_diagonal,
-                'precison_cm': precison_cm
+                'precision_cm': precision_cm
             },
             'models': {
                 'encoder': final_encoder,
@@ -207,7 +213,7 @@ class CrossValidation:
                     'f1_score': val_f1,
                     'confusion_matrix': val_confusion.tolist(),
                     'mean_diagonal': mean_diagonal,
-                    'precison_cm': precison_cm
+                    'precision_cm': precision_cm
                 }
             }, f, indent=2)
         
@@ -283,7 +289,7 @@ class CrossValidation:
         recalls = [fold['validation_metrics']['recall'] for fold in self.fold_results]
         f1_scores = [fold['validation_metrics']['f1_score'] for fold in self.fold_results]
         mean_diagonals = [fold['validation_metrics']['mean_diagonal'] for fold in self.fold_results]
-        precison_cms = [fold['validation_metrics']['precison_cm'] for fold in self.fold_results]
+        precision_cms = [fold['validation_metrics']['precision_cm'] for fold in self.fold_results]
         
         # Calculate statistics
         cv_results = {
@@ -303,7 +309,11 @@ class CrossValidation:
             'fold_recalls': recalls,
             'fold_f1_scores': f1_scores,
             'fold_mean_diagonals': mean_diagonals,
-            'fold_precison_cms': precison_cms
+            'fold_precision_cms': precision_cms,
+            'mean_mean_diagonal': np.mean(mean_diagonals),
+            'std_mean_diagonal': np.std(mean_diagonals),
+            'mean_precision_cm': np.mean(precision_cms),
+            'std_precision_cm': np.std(precision_cms)
         }
         
         # Print results
@@ -312,6 +322,8 @@ class CrossValidation:
         print(f"Precision: {cv_results['mean_precision']:.4f} ± {cv_results['std_precision']:.4f}")
         print(f"Recall: {cv_results['mean_recall']:.4f} ± {cv_results['std_recall']:.4f}")
         print(f"F1-score: {cv_results['mean_f1_score']:.4f} ± {cv_results['std_f1_score']:.4f}")
+        print(f"Mean Diagonal: {cv_results['mean_mean_diagonal']:.4f} ± {cv_results['std_mean_diagonal']:.4f}")
+        print(f"Precision (CM): {cv_results['mean_precision_cm']:.4f} ± {cv_results['std_precision_cm']:.4f}")
         
         # Save aggregated results
         with open(os.path.join(output_dir, "cv_summary.json"), 'w') as f:
@@ -332,26 +344,32 @@ class CrossValidation:
         """
         fig, axes = plt.subplots(2, 3, figsize=(18, 12))
         
-        metrics = ['accuracy', 'balanced_accuracy', 'precision', 'recall', 'f1_score', 'mean_diagonal', 'precison_cm']
-        titles = ['Accuracy', 'Balanced Accuracy', 'Precision', 'Recall', 'F1-Score', 'Mean Diagonal', 'Precision Confusion Matrix']
+        metrics = ['accuracy', 'balanced_accuracy', 'precision', 'recall', 'f1_score', 'mean_diagonal']
+        titles = ['Accuracy', 'Balanced Accuracy', 'Precision', 'Recall', 'F1-Score', 'Mean Diagonal']
         
         for i, (metric, title) in enumerate(zip(metrics, titles)):
             ax = axes[i//3, i%3]
             # Handle the irregular pluralization
             if metric == 'accuracy':
                 fold_values = cv_results['fold_accuracies']
+                mean_val = cv_results['mean_accuracy']
+                std_val = cv_results['std_accuracy']
             elif metric == 'balanced_accuracy':
                 fold_values = cv_results['fold_balanced_accuracies']
+                mean_val = cv_results['mean_balanced_accuracy']
+                std_val = cv_results['std_balanced_accuracy']
             elif metric == 'f1_score':
                 fold_values = cv_results['fold_f1_scores']
+                mean_val = cv_results['mean_f1_score']
+                std_val = cv_results['std_f1_score']
             elif metric == 'mean_diagonal':
                 fold_values = cv_results['fold_mean_diagonals']
-            elif metric == 'precison_cm':
-                fold_values = cv_results['fold_precison_cms']
+                mean_val = cv_results['mean_mean_diagonal']
+                std_val = cv_results['std_mean_diagonal']
             else:
                 fold_values = cv_results[f'fold_{metric}s']
-            mean_val = cv_results[f'mean_{metric}']
-            std_val = cv_results[f'std_{metric}']
+                mean_val = cv_results[f'mean_{metric}']
+                std_val = cv_results[f'std_{metric}']
             
             ax.bar(range(1, self.k_folds + 1), fold_values, alpha=0.7, color='skyblue')
             ax.axhline(y=mean_val, color='red', linestyle='--', label=f'Mean: {mean_val:.4f}')
@@ -373,6 +391,7 @@ class CrossValidation:
         
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, 'cv_results.png'), dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(output_dir, 'cv_results.eps'), format='eps', dpi=300, bbox_inches='tight')
         plt.close()
         
         print(f"Cross-validation results plot saved to {os.path.join(output_dir, 'cv_results.png')}") 
