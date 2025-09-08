@@ -320,11 +320,9 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         z_imgs_train = encoder.predict(x_train)
         z_imgs_val = encoder.predict(x_val)
         z_imgs_test = encoder.predict(x_test)
-        # centroid_class_0 = np.mean(z_imgs_train[y_train == 0], axis=0) 
-        # centroid_class_1 = np.mean(z_imgs_train[y_train == 1], axis=0)
+        centroid_class_0 = np.mean(z_imgs_train[y_train == 0], axis=0) 
+        centroid_class_1 = np.mean(z_imgs_train[y_train == 1], axis=0)
 
-        centroid_class_0 = np.mean(z_imgs_test[y_test == 0], axis=0) 
-        centroid_class_1 = np.mean(z_imgs_test[y_test == 1], axis=0)
         # Compute Euclidean distance between centroids
         distance = euclidean(centroid_class_0, centroid_class_1)
         kl_divergence = calculate_kl_divergence(z_imgs_train)
@@ -382,7 +380,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 del classifier
                 tf.keras.backend.clear_session()
                 
-                if (mean_diagonal >= 0.65 and recall_class_1 >= 0.75) or epoch == config['epochs'] - 1: # and distance > 0.9 
+                if (mean_diagonal >= 0.65 and recall_class_1 >= 0.7) or epoch == config['epochs'] - 1:
                     print("Classification accuracy is good! :)")
                     good_conditions_stop.append(epoch)
                     # Save confusion matrix
@@ -401,7 +399,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     kl_divergences_array = np.array(kl_divergence)
                     np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
                     
-                    if (epoch >=9 or epoch == config['epochs'] - 1) and distance > 0.2: 
+                    if (epoch > 40 or epoch == config['epochs'] - 1) and distance > 0.7: 
                         
                         print(f"Saved latent analysis files: covariance, correlation, KL divergences for epoch {epoch}")
                         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
