@@ -328,7 +328,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         kl_divergence = calculate_kl_divergence(z_imgs_train)
         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
 
-        if (kl_divergence[0] < 5 and kl_divergence[1] < 5) or epoch == config['epochs'] - 1: 
+        if (kl_divergence[0] < 1 and kl_divergence[1] < 1) or epoch == config['epochs'] - 1: 
             print("Latent Space is Gaussian-distributed!")
             print("Eucledian distance:", distance)
 
@@ -371,16 +371,16 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 class_sums = cm.sum(axis=1, keepdims=True)
                 conf_matrix_normalized = cm / class_sums
                 mean_diagonal = np.mean(np.diag(conf_matrix_normalized))
-                precison = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
+                precision = conf_matrix_normalized[0,0] / (conf_matrix_normalized[0,0] + conf_matrix_normalized[1,0])
                 recall_class_1 = conf_matrix_normalized[1,1] / (conf_matrix_normalized[1,0] + conf_matrix_normalized[1,1])
-                f1_score = 2 * (precison * recall_class_1) / (precison + recall_class_1)
-                print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precison:.4f}, Recall: {recall_class_1:.4f}, F1 score: {f1_score:.4f}")
+                f1_score = 2 * (precision * recall_class_1) / (precision + recall_class_1)
+                print(f"Mean diagonal: {mean_diagonal:.4f}, Precision: {precision:.4f}, Recall: {recall_class_1:.4f}, F1 score: {f1_score:.4f}")
 
                 # Clean up classifier to prevent memory leaks
                 del classifier
                 tf.keras.backend.clear_session()
                 
-                if (mean_diagonal >= 0.65 and precison >= 0.7) or epoch == config['epochs'] - 1:
+                if (mean_diagonal >= 0.65 and precision >= 0.7) or epoch == config['epochs'] - 1:
                     print("Classification accuracy is good! :)")
                     good_conditions_stop.append(epoch)
                     # Save confusion matrix
@@ -399,7 +399,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     kl_divergences_array = np.array(kl_divergence)
                     np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
                     
-                    if (epoch > 10 or epoch == config['epochs'] - 1) and distance > 0.7: 
+                    if (epoch > 10 or epoch == config['epochs'] - 1) and distance > 0.5: 
                         
                         print(f"Saved latent analysis files: covariance, correlation, KL divergences for epoch {epoch}")
                         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
