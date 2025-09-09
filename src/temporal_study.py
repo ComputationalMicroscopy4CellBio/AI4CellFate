@@ -130,7 +130,7 @@ def main():
         ##### STAGE 2#####
         # Train AI4CellFate: Autoencoder + Covariance + Contrastive (Engineered Latent Space)
 
-        lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test, output_dir=output_base_dir) 
+        lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test_new, y_test_new, output_dir=output_base_dir) 
         encoder = lambda_ae_cov_results['encoder']
         decoder = lambda_ae_cov_results['decoder']
         discriminator = lambda_ae_cov_results['discriminator']
