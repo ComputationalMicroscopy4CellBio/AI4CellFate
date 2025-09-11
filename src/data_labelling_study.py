@@ -81,7 +81,7 @@ def main():
         )
 
         #### NOW WE HAVE x_train_new, x_val, x_test_new, y_train_new, y_val, y_test_new ####
-        np.random.seed(config_autoencoder['seed'])
+        np.random.seed(42)
         less_indexes = np.random.choice(np.arange(len(y_train_new)), int(size * len(y_train_new)), replace=False)
 
         smaller_x_train = x_train_new[np.sort(less_indexes)]
