@@ -305,9 +305,9 @@ class Evaluation:
         #scatter = plt.scatter(latent_space[:, feat_0], latent_space[:, feat_1], c=y_train, cmap='viridis', alpha=0.7)
         plt.figure(figsize=(8, 6), dpi=300)
         
-        plt.scatter(latent_space[y_train == feat_0][:, 0], latent_space[y_train == feat_0][:, 1], 
+        plt.scatter(latent_space[y_train == 0][:, feat_0], latent_space[y_train == 0][:, feat_1], 
             color='#648fff', label="Fate 0", alpha=1, edgecolors='k', linewidth=0.5, rasterized=True)  
-        plt.scatter(latent_space[y_train == feat_1][:, 0], latent_space[y_train == feat_1][:, 1], 
+        plt.scatter(latent_space[y_train == 1][:, feat_0], latent_space[y_train == 1][:, feat_1], 
             color='#dc267f', label="Fate 1", alpha=1, edgecolors='k', linewidth=0.5, rasterized=True)  
 
         plt.xlabel("Latent Feature 0 (z0)", fontsize=18, fontname="Arial")
