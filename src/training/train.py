@@ -399,7 +399,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     kl_divergences_array = np.array(kl_divergence)
                     np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
                     
-                    if (epoch > 10 or epoch == config['epochs'] - 1) and distance > 0.5: 
+                    if (epoch > 50 or epoch == config['epochs'] - 1) and distance > 0.5: 
                         
                         print(f"Saved latent analysis files: covariance, correlation, KL divergences for epoch {epoch}")
                         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])

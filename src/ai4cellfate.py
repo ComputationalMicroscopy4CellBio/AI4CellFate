@@ -10,12 +10,12 @@ def load_data():
     # TODO: replace with data loader
 
     # Augmented data - FIRST FRAME ONLY
-    augmented_x_train = np.load('./data/second_generation/augmented_x_traintrain_second_gen.npy')
-    augmented_y_train = np.load('./data/second_generation/augmented_y_train_second_gen.npy')
-    x_val = np.load('./data/second_generation/x_val_second_gen.npy')
-    y_val = np.load('./data/second_generation/y_val_second_gen.npy')
-    x_test = np.load('./data/second_generation/x_test_second_gen.npy')
-    y_test = np.load('./data/second_generation/y_test_second_gen.npy')
+    augmented_x_train = np.load('./data/final_split/augmented_x_train.npy')
+    augmented_y_train = np.load('./data/final_split/augmented_y_train.npy')
+    x_val = np.load('./data/final_split/x_val.npy')
+    y_val = np.load('./data/final_split/y_val.npy')
+    x_test = np.load('./data/final_split/x_test.npy')
+    y_test = np.load('./data/final_split/y_test.npy')
     
     print(f"Augmented train set: {augmented_x_train.shape[0]} samples")
     print(f"Augmented train labels: {augmented_y_train.shape[0]} samples")
@@ -60,12 +60,12 @@ def main():
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 4,
-        'lambda_cov': 1,
-        'lambda_contra': 14, 
+        'lambda_cov': 0, #1
+        'lambda_contra': 0,  #8
     }
 
     # Create parameter-based folder name
-    folder_name = (f"second_gen_s1_ep{config_autoencoder['epochs']}_lr{config_autoencoder['lambda_recon']}"
+    folder_name = (f"s1_ep{config_autoencoder['epochs']}_lr{config_autoencoder['lambda_recon']}"
                    f"_la{config_autoencoder['lambda_adv']}_seed{config_autoencoder['seed']}"
                    f"_ldim{config_autoencoder['latent_dim']}_s2_lr{config_ai4cellfate['lambda_recon']}"
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
