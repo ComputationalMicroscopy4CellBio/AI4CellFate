@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Lambda, Input, GaussianNoise,concatenate, Dense, Dropout, Conv2D, Add, UpSampling2D, Dot, Conv2DTranspose, Activation, Reshape, InputSpec, LeakyReLU, Flatten, BatchNormalization, SpectralNormalization, GlobalAveragePooling2D, MaxPooling2D
+from tensorflow.keras.layers import Input, Dense, Dropout, LeakyReLU
 from tensorflow.keras.models import Model, Sequential
 
 class Discriminator:
@@ -27,29 +27,37 @@ class Discriminator:
 
     def build_discriminator(self):
         """
-        Build the discriminator model architecture.
+        Build the discriminator model architecture - simplified for 2D latent space.
         
         The model consists of:
-        1. Three dense layers with 512 units each
+        1. Two small dense layers (32, 16 units)
         2. LeakyReLU activations with alpha=0.2
-        3. Batch normalization and dropout for regularization
+        3. Minimal regularization appropriate for 2D input
         4. Final sigmoid output layer for binary classification
+        
+        Architecture: 2 → 32 → 16 → 1 (~600 parameters vs 525K)
+        
+        Key improvements:
+        - Appropriate complexity for 2D latent classification task
+        - Balanced with encoder for stable adversarial training
+        - Much faster training and better gradient flow
+        - Prevents discriminator from being too powerful
         
         Returns:
             tf.keras.Model: The built discriminator model.
         """
         model = Sequential()
-        model.add(Dense(512, input_dim=self.latent_dim))
-        model.add(BatchNormalization(scale=False))
+        
+        # First hidden layer: 2 → 32
+        model.add(Dense(32, input_dim=self.latent_dim))
         model.add(LeakyReLU(alpha=0.2))
         
-        model.add(Dense(512))
+        # Second hidden layer: 32 → 16
+        model.add(Dense(16))
         model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.3))  # Light regularization
         
-        model.add(Dense(512))
-        model.add(Dropout(0.5))
-        model.add(LeakyReLU(alpha=0.2))
-        
+        # Output layer: 16 → 1
         model.add(Dense(1, activation="sigmoid"))
 
         # Create the input layer and connect it to the model

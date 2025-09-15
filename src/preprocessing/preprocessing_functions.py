@@ -437,6 +437,9 @@ def augment_dataset(cell_images, labels, augmentations, augment_times=5, fate_0_
     """
     Augments a dataset of cell movies (cells, time, height, width), balances fate 0 and fate 1,
     and ensures reproducibility by setting a seed.
+    
+    IMPORTANT: Uses structured sampling to preserve equal augmentation representation across classes.
+    This prevents orientation bias by ensuring each class has equal representation of all augmentations.
 
     Args:
         cell_images (numpy.ndarray): Array of shape (cells, time, height, width).
@@ -448,7 +451,7 @@ def augment_dataset(cell_images, labels, augmentations, augment_times=5, fate_0_
         seed (int): Random seed for reproducibility.
 
     Returns:
-        tuple: Augmented and balanced (final_images, final_labels).
+        tuple: Augmented and balanced (final_images, final_labels) with preserved augmentation structure.
     """
     np.random.seed(seed)  # Ensure reproducibility
 
@@ -464,14 +467,54 @@ def augment_dataset(cell_images, labels, augmentations, augment_times=5, fate_0_
     fate_0_combined = np.concatenate([fate_0_images, augmented_fate_0], axis=0)
     fate_1_combined = np.concatenate([fate_1_images, augmented_fate_1], axis=0)
 
-    # Balance fate 0 to match fate 1 count
+    # Balance fate 0 to match fate 1 count using structured sampling
     target_count = len(fate_1_combined)
-    if len(fate_0_combined) < target_count:
-        print("did this happen")
-        extra_fate_0 = np.random.choice(len(fate_0_combined), size=target_count - len(fate_0_combined), replace=True)
-        balanced_fate_0 = np.concatenate([fate_0_combined, fate_0_combined[extra_fate_0]], axis=0)
-    else:
-        balanced_fate_0 = fate_0_combined[np.random.choice(len(fate_0_combined), size=target_count, replace=False)]
+    
+    def balanced_sampling_with_augmentation_structure(combined_data, target_count, augment_times, num_originals):
+        """Balance while preserving equal representation of all augmentations"""
+        if len(combined_data) <= target_count:
+            # If we need more data, duplicate some cells (with all their augmentations)
+            cells_needed = target_count // (augment_times + 1)
+            extra_cells_needed = cells_needed - num_originals
+            
+            if extra_cells_needed > 0:
+                # Randomly select cells to duplicate (including all their augmentations)
+                extra_cell_indices = np.random.choice(num_originals, size=extra_cells_needed, replace=True)
+                balanced_data = [combined_data]  # Start with original data
+                
+                for cell_idx in extra_cell_indices:
+                    # Add original
+                    balanced_data.append([combined_data[cell_idx]])
+                    # Add all its augmentations
+                    aug_start = num_originals + (cell_idx * augment_times)
+                    for i in range(augment_times):
+                        balanced_data.append([combined_data[aug_start + i]])
+                
+                return np.concatenate(balanced_data, axis=0)
+            else:
+                return combined_data
+        else:
+            # If we need less data, sample complete cells (with all their augmentations)
+            cells_needed = target_count // (augment_times + 1)
+            selected_cells = np.random.choice(num_originals, size=cells_needed, replace=False)
+            
+            balanced_data = []
+            for cell_idx in selected_cells:
+                # Add original
+                balanced_data.append(combined_data[cell_idx])
+                # Add its augmentations
+                aug_start = num_originals + (cell_idx * augment_times)
+                for i in range(augment_times):
+                    balanced_data.append(combined_data[aug_start + i])
+            
+            return np.array(balanced_data)
+    
+    num_fate_0_originals = len(fate_0_images)
+    print(f"Balancing Class 0: {len(fate_0_combined)} → {target_count} samples (preserving augmentation structure)")
+    balanced_fate_0 = balanced_sampling_with_augmentation_structure(
+        fate_0_combined, target_count, augment_times, num_fate_0_originals
+    )
+    print(f"✅ Balanced Class 0: {len(balanced_fate_0)} samples with equal augmentation representation")
 
     # Merge datasets
     final_images = np.concatenate([balanced_fate_0, fate_1_combined], axis=0)

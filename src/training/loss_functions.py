@@ -114,6 +114,23 @@ def covariance_loss(z_batch):
     diag_cov_mean = tf.reduce_mean(tf.abs(diag_cov)) 
 
     return z_std_loss, diag_cov_mean
+
+def covariance_loss_new(z):
+    """
+    Penalize non-zero off-diagonal entries in the covariance matrix of z.
+    z: Tensor of shape (batch_size, latent_dim)
+    """
+    batch_size = tf.shape(z)[0]
+    latent_dim = tf.shape(z)[1]
+    # Center the latent variables
+    z_centered = z - tf.reduce_mean(z, axis=0, keepdims=True)
+    # Compute covariance matrix: (latent_dim x latent_dim)
+    cov = tf.matmul(z_centered, z_centered, transpose_a=True) / tf.cast(batch_size - 1, tf.float32)
+    # Zero out the diagonal
+    cov_no_diag = cov - tf.linalg.diag(tf.linalg.diag_part(cov))
+    # Frobenius norm squared of off-diagonal entries
+    loss = tf.reduce_sum(tf.square(cov_no_diag))
+    return loss
     
 
 ##### SSIM loss #####
