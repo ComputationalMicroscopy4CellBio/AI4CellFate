@@ -78,6 +78,8 @@ def run_cross_validation(k_folds=5, random_state=42):
     cv_results = cv.run_cross_validation(
         x_train_orig, 
         y_train_orig,
+        x_test,
+        y_test,
         config_autoencoder,
         config_ai4cellfate,
         output_dir="./results/cross_validation",
