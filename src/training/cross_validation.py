@@ -118,8 +118,8 @@ class CrossValidation:
             y_fold_train, 
             x_fold_val, 
             y_fold_val, 
-            x_test,  
-            y_test
+            x_fold_val,  
+            y_fold_val
         )
         
         # Get final models
