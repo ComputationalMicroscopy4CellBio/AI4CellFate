@@ -143,7 +143,7 @@ class CrossValidation:
         else:
             precision = 0.0
         
-        recall = confusion_matrix[0,0] / (confusion_matrix[0,0] + confusion_matrix[0,1])
+        recall = confusion_matrix[1,1] / (confusion_matrix[1,0] + confusion_matrix[1,1])
         f1_score = 2 * (precision * recall) / (precision + recall)
         
         
@@ -322,17 +322,19 @@ class CrossValidation:
                 std_val = cv_results[f'std_{metric}']
             
             ax.bar(range(1, self.k_folds + 1), fold_values, alpha=0.7, color='skyblue')
-            ax.axhline(y=mean_val, color='red', linestyle='--', label=f'Mean: {mean_val:.4f}')
-            ax.axhline(y=mean_val + std_val, color='red', linestyle=':', alpha=0.7)
-            ax.axhline(y=mean_val - std_val, color='red', linestyle=':', alpha=0.7)
-            ax.fill_between(range(1, self.k_folds + 1), mean_val - std_val, mean_val + std_val, 
-                           alpha=0.2, color='red')
+            ax.axhline(y=mean_val, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_val:.4f}')
             
-            ax.set_xlabel('Fold')
-            ax.set_ylabel(title)
-            ax.set_title(f'{title} across {self.k_folds} folds')
+            ax.set_xlabel('Fold', fontsize=16, fontname='Arial')
+            ax.set_ylabel(title, fontsize=16, fontname='Arial')
+            ax.set_title(f'{title} across {self.k_folds} folds', fontsize=18, fontname='Arial')
             ax.set_xticks(range(1, self.k_folds + 1))
-            ax.legend()
+            ax.tick_params(axis='both', which='major', labelsize=14)
+            
+            # Set Arial font for tick labels
+            for label in ax.get_xticklabels() + ax.get_yticklabels():
+                label.set_fontname('Arial')
+            
+            ax.legend(fontsize=14)
             ax.grid(True, alpha=0.3)
         
         # Hide the empty subplot
