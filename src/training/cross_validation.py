@@ -167,7 +167,6 @@ class CrossValidation:
                 'encoder': final_encoder,
                 'decoder': final_decoder,
                 'discriminator': final_discriminator,
-                'classifier': classifier
             }
         }
         
@@ -178,7 +177,6 @@ class CrossValidation:
             final_encoder.save_weights(os.path.join(models_dir, "encoder.weights.h5"))
             final_decoder.save_weights(os.path.join(models_dir, "decoder.weights.h5"))
             final_discriminator.save_weights(os.path.join(models_dir, "discriminator.weights.h5"))
-            classifier.save_weights(os.path.join(models_dir, "classifier.weights.h5"))
         
         # Save fold metrics
         with open(os.path.join(fold_output_dir, "metrics.json"), 'w') as f:
