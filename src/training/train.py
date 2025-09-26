@@ -437,7 +437,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
     print("Generating latent feature interpretations...")
     z_train_final = encoder.predict(x_train, verbose=0)
     save_interpretations(decoder, z_train_final, output_dir=f"{output_dir}/interpretations")
-
+    print("final confusion matrix:", conf_matrix_normalized)
     return {
         'encoder': encoder,
         'decoder': decoder,
@@ -451,5 +451,6 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         'val_cov_loss': val_cov_losses,
         'val_contra_loss': val_contra_losses,
         'val_total_loss': val_total_losses,
-        'good_conditions_stop': good_conditions_stop
+        'good_conditions_stop': good_conditions_stop,
+        'confusion_matrix': conf_matrix_normalized
     }
