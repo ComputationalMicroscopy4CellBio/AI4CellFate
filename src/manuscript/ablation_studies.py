@@ -1,8 +1,8 @@
 import numpy as np
-from .training.train import *
-from .evaluation.evaluate import evaluate_model
-from .utils import *
-from .preprocessing.preprocessing_functions import augment_dataset, augmentations
+from ..training.train import *
+from ..evaluation.evaluate import evaluate_model
+from ..utils import *
+from ..preprocessing.preprocessing_functions import augment_dataset, augmentations
 
 # Function to load data
 def load_data():

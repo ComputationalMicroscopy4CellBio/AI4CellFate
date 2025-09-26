@@ -1,8 +1,8 @@
 import numpy as np
-from .training.cross_validation import CrossValidation
-from .training.train import train_autoencoder, train_cellfate
-from .evaluation.evaluate import evaluate_model
-from .utils import *
+from ..training.cross_validation import CrossValidation
+from ..training.train import train_autoencoder, train_cellfate
+from ..evaluation.evaluate import evaluate_model
+from ..utils import *
 
 def load_original_data():
     """Load original training data (before augmentation) for cross-validation."""

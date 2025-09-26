@@ -1,17 +1,18 @@
 import numpy as np
-from .training.train import *
-from .evaluation.evaluate import evaluate_model
-from .utils import *
-from .preprocessing.preprocessing_functions import augment_dataset, augmentations
+from sklearn.model_selection import train_test_split
+from ..training.train import *
+from ..evaluation.evaluate import evaluate_model
+from ..utils import *
+from ..preprocessing.preprocessing_functions import augment_dataset, augmentations
 
 # Function to load data
 def load_data():
     """Load training and testing data."""
     # TODO: replace with data loader
 
-    x_train = np.load('./data/images/train_no_aug_time_norm.npy')[:,0,:,:] # FIRST FRAME ONLY
+    x_train = np.load('./data/images/train_no_aug_time_norm.npy') 
     y_train = np.load('./data/labels/train_labels.npy')  
-    x_test = np.load('./data/images/test_time_norm.npy')[:,0,:,:] # FIRST FRAME ONLY
+    x_test = np.load('./data/images/test_time_norm.npy')
     y_test = np.load('./data/labels/test_labels.npy')
     
     print(f"Train set: {x_train.shape[0]} samples")
@@ -53,13 +54,16 @@ def main():
         'lambda_contra': 8, 
     }
 
-    dataset_size = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    for size in dataset_size:
+    for time_point in range(x_train.shape[1]):
+        x_train_time_point = x_train[:, time_point, :, :]
+        x_test_time_point = x_test[:, time_point, :, :]
+        y_train_time_point = y_train
+        y_test_time_point = y_test
 
         ###### Split into train, validation and test set ####
 
-        x_all = np.concatenate([x_train, x_test], axis=0)
-        y_all = np.concatenate([y_train, y_test], axis=0)
+        x_all = np.concatenate([x_train_time_point, x_test_time_point], axis=0)
+        y_all = np.concatenate([y_train_time_point, y_test_time_point], axis=0)
 
         print(f"Combined data shape: {x_all.shape}")
         print(f"Combined labels shape: {y_all.shape}")
@@ -80,23 +84,29 @@ def main():
             stratify=y_temp  # Keep class balance
         )
 
-        #### NOW WE HAVE x_train_new, x_val, x_test_new, y_train_new, y_val, y_test_new ####
-        np.random.seed(42)
-        less_indexes = np.random.choice(np.arange(len(y_train_new)), int(size * len(y_train_new)), replace=False)
+        # Verify the splits
+        total_samples = len(x_all)
+        print(f"\nSplit verification:")
+        print(f"Train: {len(x_train_new)} samples ({len(x_train_new)/total_samples*100:.1f}%)")
+        print(f"Val:   {len(x_val)} samples ({len(x_val)/total_samples*100:.1f}%)")
+        print(f"Test:  {len(x_test_new)} samples ({len(x_test_new)/total_samples*100:.1f}%)")
 
-        smaller_x_train = x_train_new[np.sort(less_indexes)]
-        smaller_y_train = y_train_new[np.sort(less_indexes)]
+        # Check class balance in each split
+        print(f"\nClass distribution:")
+        print(f"Train - Class 0: {np.sum(y_train_new == 0)}, Class 1: {np.sum(y_train_new == 1)}")
+        print(f"Val   - Class 0: {np.sum(y_val == 0)}, Class 1: {np.sum(y_val == 1)}")
+        print(f"Test  - Class 0: {np.sum(y_test_new == 0)}, Class 1: {np.sum(y_test_new == 1)}")
 
         augmented_x_train, augmented_y_train = augment_dataset(
-                smaller_x_train, 
-                smaller_y_train, 
+                x_train_new, 
+                y_train_new, 
                 augmentations, 
                 augment_times=5,
                 seed=42
             )
 
         # Create parameter-based folder name
-        folder_name = (f"data_size_study{size}_s1_ep{config_autoencoder['epochs']}_lr{config_autoencoder['lambda_recon']}"
+        folder_name = (f"temporal_study_tps{time_point}_s1_ep{config_autoencoder['epochs']}_lr{config_autoencoder['lambda_recon']}"
                     f"_la{config_autoencoder['lambda_adv']}_seed{config_autoencoder['seed']}"
                     f"_ldim{config_autoencoder['latent_dim']}_s2_lr{config_ai4cellfate['lambda_recon']}"
                     f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
