@@ -9,23 +9,9 @@ AI4CellFate is a deep learning framework for **interpretable cell fate predictio
 **"AI4CellFate: Interpretable Early Cell Fate Prediction with Generative AI"**  
 *bioRxiv preprint*: https://doi.org/10.1101/2025.05.12.653464
 
-## 🚀 Quick Start - Google Colab
-
-**Try AI4CellFate instantly in your browser without any installation:**
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ComputationalMicroscopy4CellBio/AI4CellFate/blob/main/notebooks/Codeless_AI4CellFate_Google_Colab.ipynb)
-
-The Google Colab notebook provides:
-- **User-friendly interface** with hidden code cells
-- **Interactive data upload** from Google Drive or local files
-- **Model training** 
-- **Latent space visualization**
-- **Interactive feature interpretation** tools
-- **Complete guidelines** for data preparation and usage
-
 ## 🏗️ Model Architecture
 
-![AI4CellFate Architecture](./figures/model_architecture.png)
+<img src="./figures/model_architecture.png" alt="AI4CellFate Architecture" width="500">
 
 *AI4CellFate implements an adversarial autoencoder with latent space engineering. The architecture combines reconstruction, adversarial, covariance, and contrastive losses to create an interpretable 2D latent space optimised for cell fate prediction.*
 
@@ -82,6 +68,14 @@ Click the Colab badge above - no installation required!
 1. Click the [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ComputationalMicroscopy4CellBio/AI4CellFate/blob/main/notebooks/Codeless_AI4CellFate_Google_Colab.ipynb) button
 2. Follow the step-by-step guided interface
 3. Upload your data and run the cells sequentially
+
+The Google Colab notebook provides:
+- **User-friendly interface** with hidden code cells
+- **Interactive data upload** from Google Drive or local files
+- **Model training** 
+- **Latent space visualization**
+- **Interactive feature interpretation** tools
+- **Complete guidelines** for data preparation and usage
 
 ### For Advanced Users: Jupyter Notebook
 Open `notebooks/AI4CellFate_workflow.ipynb` for the complete workflow with full code visibility.
