@@ -6,9 +6,8 @@ Add this code to your notebook to run comprehensive hyperparameter optimization.
 # Import the hyperparameter optimization function
 import sys
 import os
-sys.path.append(os.path.abspath("../.."))
-from src.training.hyperparameter_optimization import run_fair_feature_comparison
 import numpy as np
+from .tabular_hyperparameter_optimization import run_fair_feature_comparison
 
 def run_tabular_hyperparameter_optimization(train_tracks_features, 
                                            train_labels, 
