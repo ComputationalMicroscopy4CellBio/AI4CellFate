@@ -25,7 +25,7 @@ The Google Colab notebook provides:
 
 ## 🏗️ Model Architecture
 
-![AI4CellFate Architecture](figures/model_architecture.png)
+![AI4CellFate Architecture](./figures/model_architecture.png)
 
 *AI4CellFate implements an adversarial autoencoder with latent space engineering. The architecture combines reconstruction, adversarial, covariance, and contrastive losses to create an interpretable 2D latent space optimised for cell fate prediction.*
 
