@@ -31,7 +31,6 @@ def load_data():
 def main():
     """Main function with the full workflow of the AI4CellFate project."""
     
-    
     # Load data
     augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test = load_data() 
 
@@ -43,7 +42,7 @@ def main():
         'epochs': 100, 
         'learning_rate': 0.0001,
         'seed': 42,
-        'latent_dim': 5,
+        'latent_dim': 4,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5,
         'lambda_adv': 1,
@@ -57,12 +56,12 @@ def main():
         'epochs': 100,
         'learning_rate': 0.001,
         'seed': 42,
-        'latent_dim': 5,
+        'latent_dim': 4,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 4,
         'lambda_cov': 1, #1
-        'lambda_contra': 4,  #8
+        'lambda_contra': 2,  #8
     }
 
     # Create parameter-based folder name
