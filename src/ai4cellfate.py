@@ -39,10 +39,10 @@ def main():
 
     config_autoencoder = {
         'batch_size': 30,
-        'epochs': 35, 
+        'epochs': 100, 
         'learning_rate': 0.0001,
         'seed': 42,
-        'latent_dim': 2,
+        'latent_dim': 5,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5,
         'lambda_adv': 1,
@@ -56,12 +56,12 @@ def main():
         'epochs': 100,
         'learning_rate': 0.001,
         'seed': 42,
-        'latent_dim': 2,
+        'latent_dim': 5,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 4,
-        'lambda_cov': 0, #1
-        'lambda_contra': 0,  #8
+        'lambda_cov': 1, #1
+        'lambda_contra': 4,  #8
     }
 
     # Create parameter-based folder name
