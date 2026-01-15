@@ -38,20 +38,18 @@ class Encoder:
         """
         Build the encoder model architecture with controlled feature expansion.
         
-        Dimensional flow (reviewer-friendly, max 400 features):
-        - Input: (20, 20, 1) = 400 pixels
-        - Conv: (20, 20, 2) = 800 features (2x expansion, brief)
-        - res_block_down: (10, 10, 4) = 400 features (same as input!)
-        - res_block_down: (5, 5, 8) = 200 features (0.5x input)
-        - Flatten: 200 features
-        - Dense: 200 → 2 latent features
+        Dimensional flow for 100x100 images:
+        - Input: (100, 100, 1) = 10000 pixels
+        - Conv: (100, 100, 2) 
+        - res_block_down: (50, 50, 8)
+        - res_block_down: (25, 25, 16)
+        - Flatten: 10000 features
+        - Dense: 10000 → latent_dim features
         
         Key features:
-        1. Peak expansion of only 2x input size (800 vs original 6400+)
-        2. Quickly returns to input size (400 features) 
-        3. Final spatial representation smaller than input (200 features)
-        4. Preserves spatial structure through residual blocks
-        5. Addresses reviewer concerns while maintaining architecture quality
+        1. Minimal downsampling to stay close to original architecture depth
+        2. Controlled feature expansion through residual blocks
+        3. Maintains architectural quality with spectral normalization
         
         Returns:
             tf.keras.Model: The built encoder model.

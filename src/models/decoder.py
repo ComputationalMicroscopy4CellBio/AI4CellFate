@@ -36,26 +36,24 @@ class Decoder:
         """
         Build the decoder model architecture with controlled feature expansion.
         
-        Dimensional flow (mirrors encoder in reverse):
-        - Input: 2 latent features
-        - Dense: 2 → 400 features (5×5×16)
-        - Reshape: 400 → (5, 5, 16) (restore spatial structure)
-        - res_block_up: (5, 5, 16) → (10, 10, 8) = 800 features (2x expansion, brief)
-        - res_block_up: (10, 10, 8) → (20, 20, 2) = 800 features (maintains 2x)
-        - Conv: (20, 20, 2) → (20, 20, 1) = 400 features (final image)
+        Dimensional flow for 100x100 images (mirrors encoder in reverse):
+        - Input: latent_dim features
+        - Dense: latent_dim → 10000 features (25×25×16)
+        - Reshape: 10000 → (25, 25, 16) (restore spatial structure)
+        - res_block_up: (25, 25, 16) → (50, 50, 8)
+        - res_block_up: (50, 50, 8) → (100, 100, 2)
+        - Conv: (100, 100, 2) → (100, 100, 1) (final image)
         
         Key features:
         1. Symmetric with encoder for optimal reconstruction
-        2. Peak expansion matches encoder (2x input size)
-        3. Gradual spatial upsampling preserves structure
-        4. Controlled channel progression maintains quality
-        5. Addresses reviewer concerns while maintaining reconstruction fidelity
+        2. Exactly 2 upsampling blocks to get 25→50→100
+        3. Controlled channel progression maintains quality
         
         Returns:
             tf.keras.Model: The built decoder model.
         """
         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
-        last_conv_shape = (5, 5, 16)
+        last_conv_shape = (25, 25, 16)
         X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
         X = Reshape((last_conv_shape[0], last_conv_shape[1], last_conv_shape[2]))(X)

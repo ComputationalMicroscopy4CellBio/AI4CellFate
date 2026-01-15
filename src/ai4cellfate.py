@@ -7,15 +7,15 @@ from .preprocessing.preprocessing_functions import augment_dataset, augmentation
 # Function to load data
 def load_data():
     """Load training and testing data."""
-    # TODO: replace with data loader
 
-    # Augmented data - FIRST FRAME ONLY
-    augmented_x_train = np.load('./data/final_split/augmented_x_train.npy')
-    augmented_y_train = np.load('./data/final_split/augmented_y_train.npy')
-    x_val = np.load('./data/final_split/x_val.npy')
-    y_val = np.load('./data/final_split/y_val.npy')
-    x_test = np.load('./data/final_split/x_test.npy')
-    y_test = np.load('./data/final_split/y_test.npy')
+    frame_index = 0
+    
+    augmented_x_train = np.load('/Users/inescunha/Desktop/PhotoFate/aug_train_images.npy')[:, frame_index, :, :]
+    augmented_y_train = np.load('/Users/inescunha/Desktop/PhotoFate/aug_train_labels.npy')
+    x_val = np.load('/Users/inescunha/Desktop/PhotoFate/test_images.npy')[:, frame_index, :, :]
+    y_val = np.load('/Users/inescunha/Desktop/PhotoFate/test_labels.npy')
+    x_test = np.load('/Users/inescunha/Desktop/PhotoFate/test_images.npy')[:, frame_index, :, :]
+    y_test = np.load('/Users/inescunha/Desktop/PhotoFate/test_labels.npy')
     
     print(f"Augmented train set: {augmented_x_train.shape[0]} samples")
     print(f"Augmented train labels: {augmented_y_train.shape[0]} samples")
@@ -71,7 +71,7 @@ def main():
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
                    f"_lcon{config_ai4cellfate['lambda_contra']}")
     
-    output_base_dir = f"./results/{folder_name}"
+    output_base_dir = f"./results/apoptosis_mitosis_data/{folder_name}"
     print(f"Saving results to: {output_base_dir}")
 
     lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, output_dir=output_base_dir)
