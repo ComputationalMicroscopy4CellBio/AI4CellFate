@@ -310,8 +310,8 @@ class Evaluation:
         plt.scatter(latent_space[y_train == 1][:, feat_0], latent_space[y_train == 1][:, feat_1], 
             color='#dc267f', label="Fate 1", alpha=1, edgecolors='k', linewidth=0.5, rasterized=True)  
 
-        plt.xlabel("Latent Feature 0 (z0)", fontsize=18, fontname="Arial")
-        plt.ylabel("Latent Feature 1 (z1)", fontsize=18, fontname="Arial")
+        plt.xlabel(f"Latent Feature {feat_0} (z{feat_0})", fontsize=18, fontname="Arial")
+        plt.ylabel(f"Latent Feature {feat_1} (z{feat_1})", fontsize=18, fontname="Arial")
         plt.title("Latent Space", fontsize=20, fontname="Arial")
 
         # Legend and grid

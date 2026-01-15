@@ -4,11 +4,11 @@ from .evaluation.evaluate import evaluate_model
 from .utils import *
 from .preprocessing.preprocessing_functions import augment_dataset, augmentations
 
+frame_index = 4
+
 # Function to load data
 def load_data():
     """Load training and testing data."""
-
-    frame_index = 0
     
     augmented_x_train = np.load('/Users/inescunha/Desktop/PhotoFate/aug_train_images.npy')[:, frame_index, :, :]
     augmented_y_train = np.load('/Users/inescunha/Desktop/PhotoFate/aug_train_labels.npy')
@@ -30,6 +30,7 @@ def load_data():
 # Main function
 def main():
     """Main function with the full workflow of the AI4CellFate project."""
+    
     
     # Load data
     augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test = load_data() 
@@ -69,7 +70,7 @@ def main():
                    f"_la{config_autoencoder['lambda_adv']}_seed{config_autoencoder['seed']}"
                    f"_ldim{config_autoencoder['latent_dim']}_s2_lr{config_ai4cellfate['lambda_recon']}"
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
-                   f"_lcon{config_ai4cellfate['lambda_contra']}")
+                   f"_lcon{config_ai4cellfate['lambda_contra']}_frame{frame_index}")
     
     output_base_dir = f"./results/apoptosis_mitosis_data/{folder_name}"
     print(f"Saving results to: {output_base_dir}")
