@@ -38,13 +38,13 @@ class Encoder:
         """
         Build the encoder model architecture with controlled feature expansion.
         
-        Dimensional flow for 100x100 images:
-        - Input: (100, 100, 1) = 10000 pixels
-        - Conv: (100, 100, 2) 
-        - res_block_down: (50, 50, 8)
-        - res_block_down: (25, 25, 16)
-        - Flatten: 10000 features
-        - Dense: 10000 → latent_dim features
+        Dimensional flow for 144x144 images:
+        - Input: (144, 144, 1) = 20736 pixels
+        - Conv: (144, 144, 2) 
+        - res_block_down: (72, 72, 8)
+        - res_block_down: (36, 36, 16)
+        - Flatten: 20736 features
+        - Dense: 20736 → latent_dim features
         
         Key features:
         1. Minimal downsampling to stay close to original architecture depth

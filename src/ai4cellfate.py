@@ -4,7 +4,7 @@ from .evaluation.evaluate import evaluate_model
 from .utils import *
 from .preprocessing.preprocessing_functions import augment_dataset, augmentations
 
-frame_index = 4
+frame_index = 0
 
 # Function to load data
 def load_data():
@@ -42,7 +42,7 @@ def main():
         'epochs': 100, 
         'learning_rate': 0.0001,
         'seed': 42,
-        'latent_dim': 4,
+        'latent_dim': 3,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5,
         'lambda_adv': 1,
@@ -56,7 +56,7 @@ def main():
         'epochs': 100,
         'learning_rate': 0.001,
         'seed': 42,
-        'latent_dim': 4,
+        'latent_dim': 3,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 4,
