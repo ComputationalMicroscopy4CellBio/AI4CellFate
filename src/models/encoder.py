@@ -35,42 +35,27 @@ class Encoder:
         self.model = self.build_encoder()
 
     def build_encoder(self):
-        """
-        Build the encoder model architecture with controlled feature expansion.
-        
-        Dimensional flow for 144x144 images:
-        - Input: (144, 144, 1) = 20736 pixels
-        - Conv: (144, 144, 2) 
-        - res_block_down: (72, 72, 8)
-        - res_block_down: (36, 36, 16)
-        - Flatten: 20736 features
-        - Dense: 20736 → latent_dim features
-        
-        Key features:
-        1. Minimal downsampling to stay close to original architecture depth
-        2. Controlled feature expansion through residual blocks
-        3. Maintains architectural quality with spectral normalization
-        
-        Returns:
-            tf.keras.Model: The built encoder model.
-        """
-        enc_input = Input(shape=(self.img_shape[0], self.img_shape[1], self.img_shape[2]), name='encoder_input')
-        X = SpectralNormalization(Conv2D(2, kernel_size=3, padding='same', activation='relu'))(enc_input)
-        X = self.res_block_down(X, 8)
-        X = Dropout(0.3)(X)
-        X = self.res_block_down(X, 16)
-        X = Dropout(0.3)(X)
+        enc_input = Input(shape=self.img_shape, name='encoder_input')
 
-        X = Flatten()(X)
-        X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
+        X = SpectralNormalization(
+            Conv2D(16, 3, padding='same', activation='relu')
+        )(enc_input)
+
+        X = self.res_block_down(X, 32)
+        X = self.res_block_down(X, 48)
+
+        # Global Average Pooling to reduce the spatial dimensions to a single vector
+        X = GlobalAveragePooling2D()(X)
+
+        X = GaussianNoise(self.gaussian_noise_std)(X)
         X = Activation('swish')(X)
 
         z = SpectralNormalization(Dense(self.latent_dim))(X)
-        z = GaussianNoise(stddev=self.gaussian_noise_std)(z)
+        z = GaussianNoise(self.gaussian_noise_std)(z)
 
-        encoder_model = Model(enc_input, z, name='encoder') 
+        return Model(enc_input, z, name="encoder")
 
-        return encoder_model
+
 
     def res_block_down(self, layer_input, filters):
         """

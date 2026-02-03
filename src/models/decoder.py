@@ -33,40 +33,26 @@ class Decoder:
         self.model = self.build_generator()
 
     def build_generator(self):
-        """
-        Build the decoder model architecture with controlled feature expansion.
-        
-        Dimensional flow for 144x144 images (mirrors encoder in reverse):
-        - Input: latent_dim features
-        - Dense: latent_dim → 20736 features (36×36×16)
-        - Reshape: 20736 → (36, 36, 16) (restore spatial structure)
-        - res_block_up: (36, 36, 16) → (72, 72, 8)
-        - res_block_up: (72, 72, 8) → (144, 144, 2)
-        - Conv: (144, 144, 2) → (144, 144, 1) (final image)
-        
-        Key features:
-        1. Symmetric with encoder for optimal reconstruction
-        2. Exactly 2 upsampling blocks to get 36→72→144
-        3. Controlled channel progression maintains quality
-        
-        Returns:
-            tf.keras.Model: The built decoder model.
-        """
         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
-        last_conv_shape = (36, 36, 16)
-        X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
-        X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
-        X = Reshape((last_conv_shape[0], last_conv_shape[1], last_conv_shape[2]))(X)
 
-        X = self.res_block_up(X, 8)
-        X = Dropout(0.3)(X)
-        X = self.res_block_up(X, 2)
-        X = Dropout(0.3)(X)
+        start_shape = (36, 36, 48)
 
-        X = SpectralNormalization(Conv2D(self.img_shape[2], (3, 3), strides=(1, 1), padding='same', activation='sigmoid'))(X)
-        decoder_model = Model(dec_input, X, name='decoder')
+        X = SpectralNormalization(
+            Dense(start_shape[0] * start_shape[1] * start_shape[2])
+        )(dec_input)
 
-        return decoder_model
+        X = Reshape(start_shape)(X)
+
+        X = self.res_block_up(X, 32)
+        X = self.res_block_up(X, 16)
+
+        X = SpectralNormalization(
+            Conv2D(self.img_shape[2], 3, padding='same', activation='sigmoid')
+        )(X)
+
+        return Model(dec_input, X, name="decoder")
+
+
 
     def res_block_up(self, layer_input, filters):
         """

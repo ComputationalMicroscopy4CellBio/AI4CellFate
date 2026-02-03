@@ -4,18 +4,18 @@ from .evaluation.evaluate import evaluate_model
 from .utils import *
 from .preprocessing.preprocessing_functions import augment_dataset, augmentations
 
-frame_index = 0
+frame_index = 1
 
 # Function to load data
 def load_data():
     """Load training and testing data."""
     
-    augmented_x_train = np.load('/Users/inescunha/Desktop/PhotoFate/aug_train_images.npy')[:, frame_index, :, :]
-    augmented_y_train = np.load('/Users/inescunha/Desktop/PhotoFate/aug_train_labels.npy')
-    x_val = np.load('/Users/inescunha/Desktop/PhotoFate/test_images.npy')[:, frame_index, :, :]
-    y_val = np.load('/Users/inescunha/Desktop/PhotoFate/test_labels.npy')
-    x_test = np.load('/Users/inescunha/Desktop/PhotoFate/test_images.npy')[:, frame_index, :, :]
-    y_test = np.load('/Users/inescunha/Desktop/PhotoFate/test_labels.npy')
+    augmented_x_train = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/train_images_aug.npy')[:, frame_index, :, :]
+    augmented_y_train = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/train_labels_aug.npy')
+    x_val = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/test_images.npy')[:, frame_index, :, :]
+    y_val = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/test_labels.npy')
+    x_test = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/test_images.npy')[:, frame_index, :, :]
+    y_test = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/test_labels.npy')
     
     print(f"Augmented train set: {augmented_x_train.shape[0]} samples")
     print(f"Augmented train labels: {augmented_y_train.shape[0]} samples")

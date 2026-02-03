@@ -380,7 +380,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 del classifier
                 tf.keras.backend.clear_session()
                 
-                if (mean_diagonal >= 0.7 and f1_score >= 0.65) or epoch == config['epochs'] - 1: # and precision >= 0.7
+                if (mean_diagonal >= 0.65 and f1_score >= 0.65) or epoch == config['epochs'] - 1: # and precision >= 0.7
                     print("Classification accuracy is good! :)")
                     good_conditions_stop.append(epoch)
                     # Save confusion matrix
