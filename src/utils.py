@@ -10,6 +10,90 @@ def convert_namespace_to_dict(config): # TEMPORARY: Helper function to convert N
         return {key: getattr(config, key) for key in vars(config)}
     return config # If it's already a dictionary, return as is
 
+def configure_gpu():
+    """Configure TensorFlow to use GPU if available."""
+    print(f"TensorFlow version: {tf.__version__}")
+    
+    # Check for GPUs
+    gpus = tf.config.list_physical_devices('GPU')
+    
+    if gpus:
+        try:
+            # Enable memory growth to avoid allocating all GPU memory at once
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            print(f"✓ GPU detected: {len(gpus)} GPU(s) available")
+            for i, gpu in enumerate(gpus):
+                print(f"  - GPU {i}: {gpu.name}")
+            return True, len(gpus)
+        except RuntimeError as e:
+            print(f"GPU configuration error: {e}")
+            return False, 0
+    else:
+        print("⚠ No GPU detected by TensorFlow.")
+        print("  Diagnostic information:")
+        
+        # Check if CUDA is available in the system
+        import subprocess
+        try:
+            nvidia_smi = subprocess.check_output(['nvidia-smi'], stderr=subprocess.STDOUT).decode('utf-8')
+            print("  ✓ nvidia-smi found - CUDA driver is installed")
+            # Extract GPU info from nvidia-smi
+            if 'NVIDIA-SMI' in nvidia_smi:
+                print("  ⚠ GPU hardware detected but TensorFlow can't see it.")
+                print("  Possible solutions:")
+                print("    1. Install CUDA toolkit and cuDNN:")
+                print("       - For TensorFlow 2.17.0, you need CUDA 12.x and cuDNN 9.x")
+                print("    2. Install tensorflow with GPU support:")
+                print("       pip install tensorflow[and-cuda]")
+                print("    3. Or use conda/mamba:")
+                print("       conda install -c conda-forge tensorflow-gpu")
+                print("    4. Check CUDA environment variables:")
+                print("       echo $CUDA_HOME")
+                print("       echo $LD_LIBRARY_PATH")
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            print("  ✗ nvidia-smi not found - CUDA driver may not be installed")
+            print("  Install NVIDIA drivers first: https://www.nvidia.com/drivers")
+        
+        # Check TensorFlow build info
+        try:
+            build_info = tf.sysconfig.get_build_info()
+            print(f"  TensorFlow built with CUDA: {build_info.get('cuda_version', 'Unknown')}")
+            print(f"  TensorFlow built with cuDNN: {build_info.get('cudnn_version', 'Unknown')}")
+        except:
+            pass
+        
+        print("  Training will use CPU (this will be slow).")
+        return False, 0
+
+def get_distribution_strategy(num_gpus=None):
+    """
+    Get TensorFlow distribution strategy for multi-GPU training.
+    
+    Args:
+        num_gpus: Number of GPUs to use. If None, uses all available GPUs.
+    
+    Returns:
+        Distribution strategy object
+    """
+    gpus = tf.config.list_physical_devices('GPU')
+    
+    if not gpus:
+        print("No GPUs found, using default strategy (CPU or single GPU)")
+        return tf.distribute.get_strategy()
+    
+    if num_gpus is None:
+        num_gpus = len(gpus)
+    
+    if num_gpus == 1:
+        print("Using single GPU")
+        return tf.distribute.get_strategy()
+    elif num_gpus > 1:
+        print(f"Using MirroredStrategy with {num_gpus} GPUs")
+        return tf.distribute.MirroredStrategy(devices=[f'/GPU:{i}' for i in range(num_gpus)])
+    else:
+        return tf.distribute.get_strategy()
+
 def set_seed(seed):
     """Set the random seed for reproducibility."""
     np.random.seed(seed)

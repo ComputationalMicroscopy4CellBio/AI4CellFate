@@ -324,9 +324,14 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                                val_cov_losses[-1] + val_contra_losses[-1])
         
         # Compute centroids
-        z_imgs_train = encoder.predict(x_train)
-        z_imgs_val = encoder.predict(x_val)
-        z_imgs_test = encoder.predict(x_test)
+        # Encoder expects a channel dimension (H, W, 1), so expand it here
+        x_train_expanded = np.expand_dims(x_train, axis=-1)
+        x_val_expanded = np.expand_dims(x_val, axis=-1)
+        x_test_expanded = np.expand_dims(x_test, axis=-1)
+        z_imgs_train = encoder.predict(x_train_expanded)
+        z_imgs_val = encoder.predict(x_val_expanded)
+        z_imgs_test = encoder.predict(x_test_expanded)
+        
         centroid_class_0 = np.mean(z_imgs_train[y_train == 0], axis=0) 
         centroid_class_1 = np.mean(z_imgs_train[y_train == 1], axis=0)
 
@@ -445,7 +450,9 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
 
     # Generate and save latent feature interpretations
     print("Generating latent feature interpretations...")
-    z_train_final = encoder.predict(x_train, verbose=0)
+    # Encoder expects a channel dimension (H, W, 1), so expand it here
+    x_train_expanded = np.expand_dims(x_train, axis=-1)
+    z_train_final = encoder.predict(x_train_expanded, verbose=0)
     save_interpretations(decoder, z_train_final, epoch= epoch, output_dir=f"{output_dir}/interpretations")
 
     print("final confusion matrix:", conf_matrix_normalized)
