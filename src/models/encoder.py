@@ -35,25 +35,42 @@ class Encoder:
         self.model = self.build_encoder()
 
     def build_encoder(self):
-        enc_input = Input(shape=self.img_shape, name='encoder_input')
-
-        X = SpectralNormalization(
-            Conv2D(16, 3, padding='same', activation='relu')
-        )(enc_input)
-
+        """
+        Build the encoder model architecture with controlled feature expansion.
+        
+        Dimensional flow for 144x144 images:
+        - Input: (144, 144, 1)
+        - Conv: (144, 144, 16) 
+        - res_block_down: (72, 72, 32)
+        - res_block_down: (36, 36, 64)
+        - Flatten: 82944 features
+        - Dense: 82944 → latent_dim features
+        
+        Key features:
+        1. Two downsampling stages for a simpler encoder
+        2. Standard filter progression (16→32→64) appropriate for 144x144 images
+        3. Maintains architectural quality with spectral normalization
+        
+        Returns:
+            tf.keras.Model: The built encoder model.
+        """
+        enc_input = Input(shape=(self.img_shape[0], self.img_shape[1], self.img_shape[2]), name='encoder_input')
+        X = SpectralNormalization(Conv2D(16, kernel_size=3, padding='same', activation='relu'))(enc_input)
         X = self.res_block_down(X, 32)
-        X = self.res_block_down(X, 48)
+        X = Dropout(0.3)(X)
+        X = self.res_block_down(X, 64)
+        X = Dropout(0.3)(X)
 
-        # Global Average Pooling to reduce the spatial dimensions to a single vector
-        X = GlobalAveragePooling2D()(X)
-
-        X = GaussianNoise(self.gaussian_noise_std)(X)
+        X = Flatten()(X)
+        X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
         X = Activation('swish')(X)
 
         z = SpectralNormalization(Dense(self.latent_dim))(X)
-        z = GaussianNoise(self.gaussian_noise_std)(z)
+        z = GaussianNoise(stddev=self.gaussian_noise_std)(z)
 
-        return Model(enc_input, z, name="encoder")
+        encoder_model = Model(enc_input, z, name='encoder') 
+
+        return encoder_model
 
 
 

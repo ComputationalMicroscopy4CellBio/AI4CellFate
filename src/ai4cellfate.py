@@ -4,18 +4,18 @@ from .evaluation.evaluate import evaluate_model
 from .utils import *
 from .preprocessing.preprocessing_functions import augment_dataset, augmentations
 
-frame_index = 1
+frame_index = 4
 
 # Function to load data
 def load_data():
     """Load training and testing data."""
     
-    augmented_x_train = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/train_images_aug.npy')[:, frame_index, :, :]
-    augmented_y_train = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/train_labels_aug.npy')
-    x_val = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/test_images.npy')[:, frame_index, :, :]
-    y_val = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/test_labels.npy')
-    x_test = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/test_images.npy')[:, frame_index, :, :]
-    y_test = np.load('/Volumes/InesSeagate/PhotoFate/144x144_Train_test_data/29Jan/test_labels.npy')
+    augmented_x_train = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/train_images_aug.npy')[:, frame_index, :, :]
+    augmented_y_train = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/train_labels_aug.npy')
+    x_val = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_images.npy')[:, frame_index, :, :]
+    y_val = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_labels.npy')
+    x_test = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_images.npy')[:, frame_index, :, :]
+    y_test = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_labels.npy')
     
     print(f"Augmented train set: {augmented_x_train.shape[0]} samples")
     print(f"Augmented train labels: {augmented_y_train.shape[0]} samples")
@@ -53,15 +53,15 @@ def main():
 
     config_ai4cellfate = {
         'batch_size': 30,
-        'epochs': 100,
+        'epochs': 30,
         'learning_rate': 0.001,
         'seed': 42,
         'latent_dim': 3,
         'GaussianNoise_std': 0.003,
-        'lambda_recon': 6,
-        'lambda_adv': 4,
+        'lambda_recon': 5,
+        'lambda_adv': 1,
         'lambda_cov': 1, #1
-        'lambda_contra': 2,  #8
+        'lambda_contra': 1,  #8
     }
 
     # Create parameter-based folder name
@@ -82,7 +82,16 @@ def main():
     save_model_weights_to_disk(encoder, decoder, discriminator, output_dir=f"{output_base_dir}/models_stage1")
     # Evaluate the trained model (store latent space and reconstructed images)
     evaluate_model(encoder, decoder, augmented_x_train, augmented_y_train, output_dir=f"{output_base_dir}/stage1")
-    
+
+    # img_shape = (augmented_x_train.shape[1], augmented_x_train.shape[2], 1)
+    # encoder = Encoder(img_shape=img_shape, latent_dim=config_ai4cellfate['latent_dim'], num_classes=2, gaussian_noise_std=config_ai4cellfate['GaussianNoise_std']).model
+    # decoder = Decoder(latent_dim=config_ai4cellfate['latent_dim'], img_shape=img_shape, gaussian_noise_std=config_ai4cellfate['GaussianNoise_std']).model
+    # discriminator = Discriminator(latent_dim=config_ai4cellfate['latent_dim']).model
+
+    # encoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/apoptosis_mitosis_data/s1_ep100_lr5_la1_seed42_ldim3_s2_lr6_la4_lc1_lcon1_frame0/models_stage1/encoder.weights.h5")
+    # decoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/apoptosis_mitosis_data/s1_ep100_lr5_la1_seed42_ldim3_s2_lr6_la4_lc1_lcon1_frame0/models_stage1/decoder.weights.h5")
+    # discriminator.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/apoptosis_mitosis_data/s1_ep100_lr5_la1_seed42_ldim3_s2_lr6_la4_lc1_lcon1_frame0/models_stage1/discriminator.weights.h5")
+
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test, output_dir=output_base_dir) 
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
