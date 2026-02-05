@@ -330,7 +330,7 @@ class Evaluation:
         """Use the standalone calculate_kl_divergence function."""
         return calculate_kl_divergence(latent_samples, num_bins)
 
-def save_interpretations(decoder, latent_space, output_dir, num_steps=7):
+def save_interpretations(decoder, latent_space, epoch, output_dir, num_steps=7):
     """
     Generate and save synthetic cells by perturbing latent features for interpretability.
     
@@ -381,8 +381,20 @@ def save_interpretations(decoder, latent_space, output_dir, num_steps=7):
     
     # Find global min/max for consistent colorbar
     all_reconstructions = np.array(all_reconstructions)
-    vmin = 0.25
+    vmin = all_reconstructions.min()
     vmax = all_reconstructions.max()
+
+    # Handle edge case where all values are identical (e.g. all zeros)
+    # Matplotlib's normalization requires vmin <= vmax, and behaves badly when vmin > vmax.
+    # If vmin == vmax, slightly expand the range to avoid errors during plt.savefig.
+    if not np.isfinite(vmin) or not np.isfinite(vmax):
+        # Fallback to a safe default range
+        vmin, vmax = 0.0, 1.0
+    elif vmin == vmax:
+        # Expand a degenerate range (e.g. all zeros) to a tiny interval
+        eps = 1e-6
+        vmin = vmin
+        vmax = vmin + eps
     
     # Plot with consistent colorbar
     recon_idx = 0
@@ -412,7 +424,7 @@ def save_interpretations(decoder, latent_space, output_dir, num_steps=7):
     plt.tight_layout()
     
     # Save the plot
-    output_path = os.path.join(output_dir, "synthetic_cells_latent_traversal.png")
+    output_path = os.path.join(output_dir, f"synthetic_cells_latent_traversal_epoch_{epoch}.png")
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
     
@@ -422,7 +434,9 @@ def evaluate_model(encoder, decoder, x_train, y_train, output_dir):
     """Evaluate the trained model."""
     evaluator = Evaluation(output_dir)
     
-    z_imgs = encoder.predict(x_train)
+    # Add channel dimension for encoder input
+    x_train_expanded = np.expand_dims(x_train, axis=-1)
+    z_imgs = encoder.predict(x_train_expanded)
     recon_imgs = decoder.predict(z_imgs)
     
     # Get reconstruction images
@@ -435,4 +449,58 @@ def evaluate_model(encoder, decoder, x_train, y_train, output_dir):
     print("KL Divergences in each dimension: ", evaluator.calculate_kl_divergence(z_imgs))
     
     # Generate latent feature interpretations
-    save_interpretations(decoder, z_imgs, output_dir)
+    save_interpretations(decoder, z_imgs, epoch= 1000, output_dir=output_dir)
+
+def save_latent_space(latent_space, y_train, epoch, output_dir):
+    """Visualize and save latent space features for a specific epoch."""
+    cor_vals = [np.corrcoef(np.eye(2)[y_train][:, 0], latent_space[:, i])[0, 1] for i in range(latent_space.shape[1])]
+    cor_vals = np.array(cor_vals)
+    feat_0, feat_1 = np.argsort(np.abs(cor_vals))[-2:]  # Find top 2 correlated features
+
+    print(f"Top correlated features: {feat_0}, {feat_1}")
+
+    # Scatter plot
+    #scatter = plt.scatter(latent_space[:, feat_0], latent_space[:, feat_1], c=y_train, cmap='viridis', alpha=0.7)
+    plt.figure(figsize=(8, 6), dpi=300)
+    
+    plt.scatter(latent_space[y_train == 0][:, feat_0], latent_space[y_train == 0][:, feat_1], 
+        color='#648fff', label="Fate 0", alpha=1, edgecolors='k', linewidth=0.5, rasterized=True)  
+    plt.scatter(latent_space[y_train == 1][:, feat_0], latent_space[y_train == 1][:, feat_1], 
+        color='#dc267f', label="Fate 1", alpha=1, edgecolors='k', linewidth=0.5, rasterized=True)  
+
+    plt.xlabel(f"Latent Feature {feat_0} (z{feat_0})", fontsize=18, fontname="Arial")
+    plt.ylabel(f"Latent Feature {feat_1} (z{feat_1})", fontsize=18, fontname="Arial")
+    plt.title("Latent Space", fontsize=20, fontname="Arial")
+
+    # Legend and grid
+    plt.legend(fontsize=14)
+    plt.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
+
+    # Save the plot
+    output_path = os.path.join(output_dir, f"latent_space_epoch_{epoch}.png")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Latent space visualization saved to {output_path}")
+
+def save_reconstruction_images(image_batch, recon_imgs, epoch, output_dir, n=10):
+    """Visualize and save original and reconstructed images for a specific epoch."""
+    plt.figure(figsize=(20, 4))
+    for i in range(n):
+        # Display original
+        ax = plt.subplot(2, n, i + 1)
+        plt.imshow(image_batch[i][:, :], cmap="gray", vmin=0.0, vmax=image_batch.max())
+        plt.title("Original")
+        plt.axis("off")
+        plt.colorbar()
+
+        # Display reconstruction
+        ax = plt.subplot(2, n, i + n + 1)
+        plt.imshow(recon_imgs[i][:, :], cmap="gray", vmin=0.0, vmax=image_batch.max())
+        plt.title("Reconstructed")
+        plt.axis("off")
+        plt.colorbar()
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, f"reconstructions_{epoch}.png")
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+    print(f"Reconstruction images saved to {output_path}")

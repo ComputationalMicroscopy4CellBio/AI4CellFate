@@ -3,7 +3,7 @@ import numpy as np
 import os
 from matplotlib import pyplot as plt
 from ..utils import *
-from ..evaluation.evaluate import calculate_kl_divergence, save_interpretations, save_confusion_matrix
+from ..evaluation.evaluate import calculate_kl_divergence, save_interpretations, save_confusion_matrix, save_latent_space, save_reconstruction_images
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
 from scipy.spatial.distance import euclidean
@@ -129,6 +129,13 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
             # Store validation losses for the epoch
             val_reconstruction_losses.append(np.mean(val_recon_losses_epoch))
             val_adversarial_losses.append(np.mean(val_adv_losses_epoch))
+        
+        os.makedirs(f"{output_dir}/reconstructions", exist_ok=True)
+        # Add channel dimension for encoder input
+        x_train_expanded = np.expand_dims(x_train, axis=-1)
+        z_imgs_train = encoder.predict(x_train_expanded)
+        save_reconstruction_images(x_train, decoder(z_imgs_train, training=False), epoch, output_dir=f"{output_dir}/reconstructions")
+        save_interpretations(decoder, z_imgs_train, epoch, output_dir=f"{output_dir}/interpretations")
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
@@ -331,7 +338,9 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         if (kl_divergence[0] < 10 and kl_divergence[1] < 10) or epoch == config['epochs'] - 1: 
             print("Latent Space is Gaussian-distributed!")
             print("Eucledian distance:", distance)
-
+            os.makedirs(f"{output_dir}/reconstructions", exist_ok=True)
+            save_reconstruction_images(x_train, decoder(z_imgs_train, training=False), epoch, output_dir=f"{output_dir}/reconstructions")
+            save_interpretations(decoder, z_imgs_train, epoch, output_dir=f"{output_dir}/interpretations")
             # Compute classification accuracy and use it as a stopping criterion
             try:
                 # Clear any existing TensorFlow session state
@@ -385,6 +394,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     good_conditions_stop.append(epoch)
                     # Save confusion matrix
                     save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
+                    save_latent_space(z_imgs_train, y_train, epoch, output_dir)
                     
                     # Save additional latent space analysis files
                     # 1. Covariance matrix of latent features
@@ -436,7 +446,8 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
     # Generate and save latent feature interpretations
     print("Generating latent feature interpretations...")
     z_train_final = encoder.predict(x_train, verbose=0)
-    save_interpretations(decoder, z_train_final, output_dir=f"{output_dir}/interpretations")
+    save_interpretations(decoder, z_train_final, epoch= epoch, output_dir=f"{output_dir}/interpretations")
+
     print("final confusion matrix:", conf_matrix_normalized)
     return {
         'encoder': encoder,
