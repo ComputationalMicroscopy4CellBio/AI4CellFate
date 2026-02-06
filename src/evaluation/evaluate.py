@@ -310,9 +310,10 @@ class Evaluation:
         plt.scatter(latent_space[y_train == 1][:, feat_0], latent_space[y_train == 1][:, feat_1], 
             color='#dc267f', label="Fate 1", alpha=1, edgecolors='k', linewidth=0.5, rasterized=True)  
 
-        plt.xlabel(f"Latent Feature {feat_0} (z{feat_0})", fontsize=18, fontname="Arial")
-        plt.ylabel(f"Latent Feature {feat_1} (z{feat_1})", fontsize=18, fontname="Arial")
-        plt.title("Latent Space", fontsize=20, fontname="Arial")
+        # Use default matplotlib font to avoid warnings about missing Arial
+        plt.xlabel(f"Latent Feature {feat_0} (z{feat_0})", fontsize=18)
+        plt.ylabel(f"Latent Feature {feat_1} (z{feat_1})", fontsize=18)
+        plt.title("Latent Space", fontsize=20)
 
         # Legend and grid
         plt.legend(fontsize=14)
@@ -421,7 +422,12 @@ def save_interpretations(decoder, latent_space, epoch, output_dir, num_steps=7):
     
     # Add a single colorbar for the entire figure
     fig.colorbar(im, ax=axes, shrink=0.6, aspect=30)
-    plt.tight_layout()
+    # Some complex layouts (e.g., with colorbars) can raise a UserWarning with tight_layout.
+    # Wrap in try/except to avoid noisy logs while still improving layout when possible.
+    try:
+        plt.tight_layout()
+    except Exception:
+        pass
     
     # Save the plot
     output_path = os.path.join(output_dir, f"synthetic_cells_latent_traversal_epoch_{epoch}.png")
@@ -468,9 +474,10 @@ def save_latent_space(latent_space, y_train, epoch, output_dir):
     plt.scatter(latent_space[y_train == 1][:, feat_0], latent_space[y_train == 1][:, feat_1], 
         color='#dc267f', label="Fate 1", alpha=1, edgecolors='k', linewidth=0.5, rasterized=True)  
 
-    plt.xlabel(f"Latent Feature {feat_0} (z{feat_0})", fontsize=18, fontname="Arial")
-    plt.ylabel(f"Latent Feature {feat_1} (z{feat_1})", fontsize=18, fontname="Arial")
-    plt.title("Latent Space", fontsize=20, fontname="Arial")
+    # Use default matplotlib font to avoid warnings about missing Arial
+    plt.xlabel(f"Latent Feature {feat_0} (z{feat_0})", fontsize=18)
+    plt.ylabel(f"Latent Feature {feat_1} (z{feat_1})", fontsize=18)
+    plt.title("Latent Space", fontsize=20)
 
     # Legend and grid
     plt.legend(fontsize=14)

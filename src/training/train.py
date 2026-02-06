@@ -331,7 +331,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         z_imgs_train = encoder.predict(x_train_expanded)
         z_imgs_val = encoder.predict(x_val_expanded)
         z_imgs_test = encoder.predict(x_test_expanded)
-        
+
         centroid_class_0 = np.mean(z_imgs_train[y_train == 0], axis=0) 
         centroid_class_1 = np.mean(z_imgs_train[y_train == 1], axis=0)
 
@@ -344,8 +344,10 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             print("Latent Space is Gaussian-distributed!")
             print("Eucledian distance:", distance)
             os.makedirs(f"{output_dir}/reconstructions", exist_ok=True)
+            os.makedirs(f"{output_dir}/latent_space", exist_ok=True)
             save_reconstruction_images(x_train, decoder(z_imgs_train, training=False), epoch, output_dir=f"{output_dir}/reconstructions")
             save_interpretations(decoder, z_imgs_train, epoch, output_dir=f"{output_dir}/interpretations")
+            save_latent_space(z_imgs_train, y_train, epoch, output_dir=f"{output_dir}/latent_space")
             # Compute classification accuracy and use it as a stopping criterion
             try:
                 # Clear any existing TensorFlow session state
@@ -394,7 +396,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 del classifier
                 tf.keras.backend.clear_session()
                 
-                if (mean_diagonal >= 0.65 and f1_score >= 0.65) or epoch == config['epochs'] - 1: # and precision >= 0.7
+                if (mean_diagonal >= 0.60 and f1_score >= 0.60) or epoch == config['epochs'] - 1: # and precision >= 0.7
                     print("Classification accuracy is good! :)")
                     good_conditions_stop.append(epoch)
                     # Save confusion matrix
@@ -414,7 +416,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     kl_divergences_array = np.array(kl_divergence)
                     np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
                     
-                    if (epoch > 10 or epoch == config['epochs'] - 1) and distance > 0.5: 
+                    if (epoch >= 0 or epoch == config['epochs'] - 1) and distance > 0.5 : 
                         
                         print(f"Saved latent analysis files: covariance, correlation, KL divergences for epoch {epoch}")
                         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
