@@ -78,6 +78,7 @@ def run_single_configuration(config_autoencoder, config_ai4cellfate, augmented_x
 
 
 def run_model_optimization():
+    print(">>> model_optimization.py: starting run_model_optimization()", flush=True)
     """
     Run comprehensive model optimization across different hyperparameters.
     
@@ -95,7 +96,7 @@ def run_model_optimization():
     
     # Define hyperparameter search space
     latent_dims = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-    lambda_contras = [0.01, 0.05, 0.2, 0.3, 0.5, 0.7, 1.0]
+    lambda_contras = [0.3, 0.5, 0.7, 1.0] #0.01, 0.05, 0.2, 
     lambda_covs = [0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
     
     # Base configuration for Stage 1 (autoencoder)

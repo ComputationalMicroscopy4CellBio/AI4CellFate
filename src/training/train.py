@@ -134,8 +134,8 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
         # Add channel dimension for encoder input
         x_train_expanded = np.expand_dims(x_train, axis=-1)
         z_imgs_train = encoder.predict(x_train_expanded)
-        save_reconstruction_images(x_train, decoder(z_imgs_train, training=False), epoch, output_dir=f"{output_dir}/reconstructions")
-        save_interpretations(decoder, z_imgs_train, epoch, output_dir=f"{output_dir}/interpretations")
+        #save_reconstruction_images(x_train, decoder(z_imgs_train, training=False), epoch, output_dir=f"{output_dir}/reconstructions")
+        #save_interpretations(decoder, z_imgs_train, epoch, output_dir=f"{output_dir}/interpretations")
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
