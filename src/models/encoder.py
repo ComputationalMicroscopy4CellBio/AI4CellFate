@@ -40,25 +40,25 @@ class Encoder:
         
         Dimensional flow for 144x144 images:
         - Input: (144, 144, 1)
-        - Conv: (144, 144, 16) 
-        - res_block_down: (72, 72, 32)
-        - res_block_down: (36, 36, 64)
-        - Flatten: 82944 features
-        - Dense: 82944 → latent_dim features
+        - Conv: (144, 144, 32) 
+        - res_block_down: (72, 72, 64)
+        - res_block_down: (36, 36, 128)
+        - Flatten: 165888 features
+        - Dense: 165888 → latent_dim features
         
         Key features:
         1. Two downsampling stages for a simpler encoder
-        2. Standard filter progression (16→32→64) appropriate for 144x144 images
+        2. Increased filter progression (32→64→128) for better shape capture
         3. Maintains architectural quality with spectral normalization
         
         Returns:
             tf.keras.Model: The built encoder model.
         """
         enc_input = Input(shape=(self.img_shape[0], self.img_shape[1], self.img_shape[2]), name='encoder_input')
-        X = SpectralNormalization(Conv2D(16, kernel_size=3, padding='same', activation='relu'))(enc_input)
-        X = self.res_block_down(X, 32)
-        X = Dropout(0.3)(X)
+        X = SpectralNormalization(Conv2D(32, kernel_size=3, padding='same', activation='relu'))(enc_input)
         X = self.res_block_down(X, 64)
+        X = Dropout(0.3)(X)
+        X = self.res_block_down(X, 128)
         X = Dropout(0.3)(X)
 
         X = Flatten()(X)

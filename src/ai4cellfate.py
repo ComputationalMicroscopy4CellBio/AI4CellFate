@@ -4,7 +4,7 @@ from .evaluation.evaluate import evaluate_model
 from .utils import *
 from .preprocessing.preprocessing_functions import augment_dataset, augmentations
 
-frame_index = 4
+frame_index = 1
 
 # Function to load data
 def load_data():
@@ -42,7 +42,7 @@ def main():
         'epochs': 100, 
         'learning_rate': 0.0001,
         'seed': 42,
-        'latent_dim': 3,
+        'latent_dim': 2,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5,
         'lambda_adv': 1,
@@ -54,14 +54,14 @@ def main():
     config_ai4cellfate = {
         'batch_size': 30,
         'epochs': 100,
-        'learning_rate': 0.001,
+        'learning_rate': 0.0001,
         'seed': 42,
-        'latent_dim': 3,
+        'latent_dim': 2,
         'GaussianNoise_std': 0.003,
-        'lambda_recon': 6,
+        'lambda_recon': 5,
         'lambda_adv': 1,
-        'lambda_cov': 1, #1
-        'lambda_contra': 1,  #8
+        'lambda_cov': 0, #1
+        'lambda_contra': 0,  #8
     }
 
     # Create parameter-based folder name
@@ -71,7 +71,7 @@ def main():
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
                    f"_lcon{config_ai4cellfate['lambda_contra']}_frame{frame_index}")
     
-    output_base_dir = f"./results/apoptosis_mitosis_data/{folder_name}"
+    output_base_dir = f"./results/processed_data/{folder_name}"
     print(f"Saving results to: {output_base_dir}")
 
     # lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, output_dir=output_base_dir)
@@ -88,9 +88,9 @@ def main():
     decoder = Decoder(latent_dim=config_ai4cellfate['latent_dim'], img_shape=img_shape, gaussian_noise_std=config_ai4cellfate['GaussianNoise_std']).model
     discriminator = Discriminator(latent_dim=config_ai4cellfate['latent_dim']).model
 
-    encoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/apoptosis_mitosis_data/s1_ep100_lr5_la1_seed42_ldim3_s2_lr5_la1_lc1_lcon1_frame4/models_stage1/encoder.weights.h5")
-    decoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/apoptosis_mitosis_data/s1_ep100_lr5_la1_seed42_ldim3_s2_lr5_la1_lc1_lcon1_frame4/models_stage1/decoder.weights.h5")
-    discriminator.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/apoptosis_mitosis_data/s1_ep100_lr5_la1_seed42_ldim3_s2_lr5_la1_lc1_lcon1_frame4/models_stage1/discriminator.weights.h5")
+    encoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/processed_data/s1_ep100_lr5_la1_seed42_ldim2_s2_lr20_la2_lc1_lcon0.05_frame1/models_stage1/encoder.weights.h5")
+    decoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/processed_data/s1_ep100_lr5_la1_seed42_ldim2_s2_lr20_la2_lc1_lcon0.05_frame1/models_stage1/decoder.weights.h5")
+    discriminator.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/processed_data/s1_ep100_lr5_la1_seed42_ldim2_s2_lr20_la2_lc1_lcon0.05_frame1/models_stage1/discriminator.weights.h5")
 
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test, output_dir=output_base_dir) 
     encoder = lambda_ae_cov_results['encoder']

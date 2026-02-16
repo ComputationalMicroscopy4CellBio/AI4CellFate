@@ -38,29 +38,29 @@ class Decoder:
         
         Dimensional flow for 144x144 images (mirrors encoder in reverse):
         - Input: latent_dim features
-        - Dense: latent_dim → 82944 features (36×36×64)
-        - Reshape: 82944 → (36, 36, 64) (restore spatial structure)
-        - res_block_up: (36, 36, 64) → (72, 72, 32)
-        - res_block_up: (72, 72, 32) → (144, 144, 16)
-        - Conv: (144, 144, 16) → (144, 144, 1) (final image)
+        - Dense: latent_dim → 165888 features (36×36×128)
+        - Reshape: 165888 → (36, 36, 128) (restore spatial structure)
+        - res_block_up: (36, 36, 128) → (72, 72, 64)
+        - res_block_up: (72, 72, 64) → (144, 144, 32)
+        - Conv: (144, 144, 32) → (144, 144, 1) (final image)
         
         Key features:
         1. Symmetric with encoder for optimal reconstruction
         2. Exactly 2 upsampling blocks to get 36→72→144
-        3. Controlled channel progression (64→32→16) maintains quality
+        3. Increased channel progression (128→64→32) for better shape reconstruction
         
         Returns:
             tf.keras.Model: The built decoder model.
         """
         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
-        last_conv_shape = (36, 36, 64)
+        last_conv_shape = (36, 36, 128)
         X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
         X = Reshape((last_conv_shape[0], last_conv_shape[1], last_conv_shape[2]))(X)
 
-        X = self.res_block_up(X, 32)
+        X = self.res_block_up(X, 64)
         X = Dropout(0.3)(X)
-        X = self.res_block_up(X, 16)
+        X = self.res_block_up(X, 32)
         X = Dropout(0.3)(X)
 
         X = SpectralNormalization(Conv2D(self.img_shape[2], (3, 3), strides=(1, 1), padding='same', activation='sigmoid'))(X)

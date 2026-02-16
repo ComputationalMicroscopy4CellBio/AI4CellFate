@@ -58,6 +58,8 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
             idx = tf.convert_to_tensor(idx, dtype=tf.int32)
             #image_batch = x_train[idx]
             image_batch = tf.gather(x_train, idx)
+            # Ensure channel dimension is present
+            image_batch = tf.expand_dims(image_batch, axis=-1)
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
@@ -65,7 +67,7 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
                 recon_imgs = decoder(z_imgs, training=True)
 
                 # Reconstruction loss
-                recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
+                recon_loss = ms_ssim_loss(image_batch, recon_imgs)
 
                 # Adversarial loss for discriminator
                 z_discriminator_out = discriminator(z_imgs, training=True)
@@ -134,8 +136,8 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
         # Add channel dimension for encoder input
         x_train_expanded = np.expand_dims(x_train, axis=-1)
         z_imgs_train = encoder.predict(x_train_expanded)
-        #save_reconstruction_images(x_train, decoder(z_imgs_train, training=False), epoch, output_dir=f"{output_dir}/reconstructions")
-        #save_interpretations(decoder, z_imgs_train, epoch, output_dir=f"{output_dir}/interpretations")
+        save_reconstruction_images(x_train, decoder(z_imgs_train, training=False), epoch, output_dir=f"{output_dir}/reconstructions")
+        save_interpretations(decoder, z_imgs_train, epoch, output_dir=f"{output_dir}/interpretations")
         
         # Store average losses for the epoch
         avg_recon_loss = np.mean(epoch_reconstruction_losses)
@@ -226,6 +228,8 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         for n_batch in range(len(x_train) // config['batch_size']):
             idx = rng.integers(0, x_train.shape[0], config['batch_size'])
             image_batch = x_train[idx]
+            # Ensure channel dimension is present
+            image_batch = tf.expand_dims(image_batch, axis=-1)
 
             with tf.GradientTape() as tape:
                 # Forward pass through encoder and decoder
@@ -233,7 +237,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 recon_imgs = decoder(z_imgs, training=True)
 
                 # Reconstruction loss
-                recon_loss = ms_ssim_loss(tf.expand_dims(image_batch, axis=-1), recon_imgs)
+                recon_loss = ms_ssim_loss(image_batch, recon_imgs)
 
                 # Adversarial loss for discriminator
                 z_discriminator_out = discriminator(z_imgs, training=True)
@@ -292,7 +296,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
             
             # Forward pass for validation (no training)
             val_image_batch_expanded = tf.expand_dims(val_image_batch, axis=-1)
-            val_z_imgs = encoder(val_image_batch, training=False)
+            val_z_imgs = encoder(val_image_batch_expanded, training=False)
             val_recon_imgs = decoder(val_z_imgs, training=False)
             
             # Validation reconstruction loss
@@ -416,7 +420,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     kl_divergences_array = np.array(kl_divergence)
                     np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
                     
-                    if (epoch >= 0 or epoch == config['epochs'] - 1) and distance > 0.5 : 
+                    if (epoch >= 90 or epoch == config['epochs'] - 1) and distance > 0.5 : 
                         
                         print(f"Saved latent analysis files: covariance, correlation, KL divergences for epoch {epoch}")
                         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
