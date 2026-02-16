@@ -95,11 +95,47 @@ def get_distribution_strategy(num_gpus=None):
         return tf.distribute.get_strategy()
 
 def set_seed(seed):
-    """Set the random seed for reproducibility."""
-    np.random.seed(seed)
-    tf.random.set_seed(seed)
+    """
+    Set the random seed for full reproducibility across CPU and GPU.
+    
+    This function configures:
+    - Python's random module
+    - NumPy random state
+    - TensorFlow random operations
+    - CUDA/cuDNN deterministic behavior
+    
+    Args:
+        seed: Integer seed value for reproducibility
+    """
+    import os
     import random
+    
+    # Set Python random seed
     random.seed(seed)
+    
+    # Set NumPy random seed
+    np.random.seed(seed)
+    
+    # Set TensorFlow random seed
+    tf.random.set_seed(seed)
+    
+    # Configure TensorFlow for deterministic operations
+    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+    os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+    
+    # Disable TensorFlow's use of multithreading for determinism
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    
+    # Enable deterministic operations in TensorFlow (TF 2.8+)
+    try:
+        tf.keras.utils.set_random_seed(seed)
+        tf.config.experimental.enable_op_determinism()
+    except AttributeError:
+        # Fallback for older TensorFlow versions
+        pass
+    
+    print(f"✓ Seed set to {seed} with deterministic GPU operations enabled")
 
 def save_model_weights_to_disk(encoder, decoder, discriminator, output_dir):
     """Save model weights to disk."""
