@@ -58,10 +58,10 @@ def main():
         'seed': 42,
         'latent_dim': 2,
         'GaussianNoise_std': 0.003,
-        'lambda_recon': 5,
-        'lambda_adv': 1,
-        'lambda_cov': 0.1, #1
-        'lambda_contra': 0.1,  #8
+        'lambda_recon': 6,
+        'lambda_adv': 2,
+        'lambda_cov': 1, #1
+        'lambda_contra': 0.2,  #8
     }
 
     # Create parameter-based folder name
@@ -88,9 +88,9 @@ def main():
     # decoder = Decoder(latent_dim=config_ai4cellfate['latent_dim'], img_shape=img_shape, gaussian_noise_std=config_ai4cellfate['GaussianNoise_std']).model
     # discriminator = Discriminator(latent_dim=config_ai4cellfate['latent_dim']).model
 
-    # encoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/processed_data/s1_ep100_lr5_la1_seed42_ldim2_s2_lr20_la2_lc1_lcon0.05_frame1/models_stage1/encoder.weights.h5")
-    # decoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/processed_data/s1_ep100_lr5_la1_seed42_ldim2_s2_lr20_la2_lc1_lcon0.05_frame1/models_stage1/decoder.weights.h5")
-    # discriminator.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/processed_data/s1_ep100_lr5_la1_seed42_ldim2_s2_lr20_la2_lc1_lcon0.05_frame1/models_stage1/discriminator.weights.h5")
+    # encoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/processed_data/s1_ep100_lr5_la1_seed42_ldim2_s2_lr5_la1_lc0.1_lcon0.1_frame1/models_stage1/encoder.weights.h5")
+    # decoder.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/processed_data/s1_ep100_lr5_la1_seed42_ldim2_s2_lr5_la1_lc0.1_lcon0.1_frame1/models_stage1/decoder.weights.h5")
+    # discriminator.load_weights("/proj/cmcb/projects/AI4CellFate/AI4CellFate/results/processed_data/s1_ep100_lr5_la1_seed42_ldim2_s2_lr5_la1_lc0.1_lcon0.1_frame1/models_stage1/discriminator.weights.h5")
 
     lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test, output_dir=output_base_dir) 
     encoder = lambda_ae_cov_results['encoder']

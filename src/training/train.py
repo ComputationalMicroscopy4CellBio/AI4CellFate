@@ -407,6 +407,11 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
                     save_latent_space(z_imgs_train, y_train, epoch, output_dir)
                     
+                    # Save model checkpoint with epoch number
+                    save_model_weights_to_disk(encoder, decoder, discriminator, 
+                                              output_dir=f"{output_dir}/models_stage2", 
+                                              epoch=epoch)
+                    
                     # Save additional latent space analysis files
                     # 1. Covariance matrix of latent features
                     latent_cov_matrix = np.cov(z_imgs_train.T)

@@ -5,7 +5,7 @@ from ..evaluation.evaluate import evaluate_model
 from ..utils import *
 from ..preprocessing.preprocessing_functions import augment_dataset, augmentations
 
-frame_index = 4
+frame_index = 1
 
 # Function to load data
 def load_data():
@@ -38,7 +38,7 @@ def run_single_configuration(config_autoencoder, config_ai4cellfate, augmented_x
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
                    f"_lcon{config_ai4cellfate['lambda_contra']}_frame{frame_index}")
     
-    output_base_dir = f"./results/model_optimization/{folder_name}"
+    output_base_dir = f"./results/model_optimisation/{folder_name}"
     print(f"Running configuration: {folder_name}")
     print(f"Saving results to: {output_base_dir}")
 
@@ -95,9 +95,9 @@ def run_model_optimization():
     augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test = load_data()
     
     # Define hyperparameter search space
-    latent_dims = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-    lambda_contras = [0.3, 0.5, 0.7, 1.0] #0.01, 0.05, 0.2, 
-    lambda_covs = [0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
+    latent_dims = [2, 3] #2, 
+    lambda_contras = [0.2, 0.4, 0.5, 0.7, 1.0] #0.01, 0.05, 0.2, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
+    lambda_covs = [0.5, 0.7, 1.0, 2.0] #0.1, , 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
     
     # Base configuration for Stage 1 (autoencoder)
     base_config_autoencoder = {
@@ -114,7 +114,7 @@ def run_model_optimization():
     base_config_ai4cellfate = {
         'batch_size': 30,
         'epochs': 100,
-        'learning_rate': 0.001,
+        'learning_rate': 0.0001,
         'seed': 42,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,

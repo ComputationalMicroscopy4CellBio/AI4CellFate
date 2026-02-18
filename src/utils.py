@@ -103,12 +103,21 @@ def set_seed(seed):
     - NumPy random state
     - TensorFlow random operations
     - CUDA/cuDNN deterministic behavior
+    - Suppresses TensorFlow warnings
+    
+    Note: Threading configuration can only be set once before TensorFlow initializes.
+    Subsequent calls will skip threading config but still set all random seeds.
+    Safe to call multiple times (e.g., once per training stage).
     
     Args:
         seed: Integer seed value for reproducibility
     """
     import os
     import random
+    
+    # Suppress TensorFlow warnings and info messages
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0=all, 1=filter INFO, 2=filter INFO+WARNING, 3=filter all
+    tf.get_logger().setLevel('ERROR')  # Only show errors, not warnings
     
     # Set Python random seed
     random.seed(seed)
@@ -124,8 +133,14 @@ def set_seed(seed):
     os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
     
     # Disable TensorFlow's use of multithreading for determinism
-    tf.config.threading.set_inter_op_parallelism_threads(1)
-    tf.config.threading.set_intra_op_parallelism_threads(1)
+    # Note: This can only be set before TensorFlow initializes
+    try:
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+    except RuntimeError:
+        # Threading config was already set (TensorFlow already initialized)
+        # This is expected on subsequent calls to set_seed()
+        pass
     
     # Enable deterministic operations in TensorFlow (TF 2.8+)
     try:
@@ -137,12 +152,30 @@ def set_seed(seed):
     
     print(f"✓ Seed set to {seed} with deterministic GPU operations enabled")
 
-def save_model_weights_to_disk(encoder, decoder, discriminator, output_dir):
-    """Save model weights to disk."""
+def save_model_weights_to_disk(encoder, decoder, discriminator, output_dir, epoch=None):
+    """
+    Save model weights to disk.
+    
+    Args:
+        encoder: Encoder model
+        decoder: Decoder model
+        discriminator: Discriminator model
+        output_dir: Directory to save weights
+        epoch: Optional epoch number to include in filename (e.g., "encoder_epoch10.weights.h5")
+               If None, saves as "encoder.weights.h5" (default behavior)
+    """
     os.makedirs(output_dir, exist_ok=True)
-    encoder.save_weights(os.path.join(output_dir, "encoder.weights.h5"))
-    decoder.save_weights(os.path.join(output_dir, "decoder.weights.h5"))
-    discriminator.save_weights(os.path.join(output_dir, "discriminator.weights.h5"))
+    
+    if epoch is not None:
+        encoder.save_weights(os.path.join(output_dir, f"encoder_epoch{epoch}.weights.h5"))
+        decoder.save_weights(os.path.join(output_dir, f"decoder_epoch{epoch}.weights.h5"))
+        discriminator.save_weights(os.path.join(output_dir, f"discriminator_epoch{epoch}.weights.h5"))
+        print(f"✓ Model weights saved for epoch {epoch} to {output_dir}")
+    else:
+        encoder.save_weights(os.path.join(output_dir, "encoder.weights.h5"))
+        decoder.save_weights(os.path.join(output_dir, "decoder.weights.h5"))
+        discriminator.save_weights(os.path.join(output_dir, "discriminator.weights.h5"))
+        print(f"✓ Model weights saved to {output_dir}")
 
 def load_model_weights_from_disk(encoder, decoder, discriminator, output_dir):
     """Load model weights from disk."""
