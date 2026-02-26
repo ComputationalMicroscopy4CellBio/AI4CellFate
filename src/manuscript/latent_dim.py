@@ -4,18 +4,20 @@ from ..evaluation.evaluate import evaluate_model
 from ..utils import *
 from ..preprocessing.preprocessing_functions import augment_dataset, augmentations
 
+frame_index = 1
+
 # Function to load data
 def load_data():
     """Load training and testing data."""
     # TODO: replace with data loader
 
     # Augmented data - FIRST FRAME ONLY
-    augmented_x_train = np.load('./data/final_split/augmented_x_train.npy')
-    augmented_y_train = np.load('./data/final_split/augmented_y_train.npy')
-    x_val = np.load('./data/final_split/x_val.npy')
-    y_val = np.load('./data/final_split/y_val.npy')
-    x_test = np.load('./data/final_split/x_test.npy')
-    y_test = np.load('./data/final_split/y_test.npy')
+    augmented_x_train = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/train_images_aug.npy')[:, frame_index, :, :]
+    augmented_y_train = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/train_labels_aug.npy')
+    x_val = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_images.npy')[:, frame_index, :, :]
+    y_val = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_labels.npy')
+    x_test = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_images.npy')[:, frame_index, :, :]
+    y_test = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_labels.npy')
     
     return augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test
 
@@ -75,15 +77,15 @@ def run_latent_dimension_studies():
     augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test = load_data()
     
     # Define seeds to test
-    seeds = [45, 46, 48]
+    seeds = [42, 43, 44]
     
     # Define latent dimensions to test
-    latent_dims = [3, 4, 5, 6, 7, 8, 9, 10, 13, 20, 30, 50, 100]
+    latent_dims = [30, 50, 100] #2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 20, 30, 50, 100
     
     # Define base configuration (your current best config with original latent_dim=2)
     base_config_autoencoder = {
         'batch_size': 30,
-        'epochs': 35, 
+        'epochs': 100, 
         'learning_rate': 0.0001,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 5,
@@ -93,12 +95,12 @@ def run_latent_dimension_studies():
     base_config_ai4cellfate = {
         'batch_size': 30,
         'epochs': 100,
-        'learning_rate': 0.001,
+        'learning_rate': 0.0001,
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
-        'lambda_adv': 4,
+        'lambda_adv': 2,
         'lambda_cov': 1,
-        'lambda_contra': 8, 
+        'lambda_contra': 0.2, 
     }
     
     # Track results
