@@ -54,11 +54,13 @@ class Encoder:
         Returns:
             tf.keras.Model: The built encoder model.
         """
+        filters = [2, 8, 16] if self.img_shape[0] == 20 else [32, 64, 128]
+
         enc_input = Input(shape=(self.img_shape[0], self.img_shape[1], self.img_shape[2]), name='encoder_input')
-        X = SpectralNormalization(Conv2D(32, kernel_size=3, padding='same', activation='relu'))(enc_input)
-        X = self.res_block_down(X, 64)
+        X = SpectralNormalization(Conv2D(filters[0], kernel_size=3, padding='same', activation='relu'))(enc_input)
+        X = self.res_block_down(X, filters[1])
         X = Dropout(0.3)(X)
-        X = self.res_block_down(X, 128)
+        X = self.res_block_down(X, filters[2])
         X = Dropout(0.3)(X)
 
         X = Flatten()(X)

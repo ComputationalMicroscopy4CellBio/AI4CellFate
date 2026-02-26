@@ -52,15 +52,21 @@ class Decoder:
         Returns:
             tf.keras.Model: The built decoder model.
         """
+        if self.img_shape[0] == 20:
+            last_conv_shape = (5, 5, 16)
+            up_filters = [8, 2]
+        else:
+            last_conv_shape = (36, 36, 128)
+            up_filters = [64, 32]
+
         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
-        last_conv_shape = (36, 36, 128)
         X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
         X = Reshape((last_conv_shape[0], last_conv_shape[1], last_conv_shape[2]))(X)
 
-        X = self.res_block_up(X, 64)
+        X = self.res_block_up(X, up_filters[0])
         X = Dropout(0.3)(X)
-        X = self.res_block_up(X, 32)
+        X = self.res_block_up(X, up_filters[1])
         X = Dropout(0.3)(X)
 
         X = SpectralNormalization(Conv2D(self.img_shape[2], (3, 3), strides=(1, 1), padding='same', activation='sigmoid'))(X)
