@@ -297,8 +297,6 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         
         # Compute centroids
         z_imgs_train = encoder.predict(x_train)
-        z_imgs_val = encoder.predict(x_val)
-        z_imgs_test = encoder.predict(x_test)
         kl_divergence = calculate_kl_divergence(z_imgs_train)
         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
 
@@ -314,7 +312,8 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                     optimizer=tf.keras.optimizers.Adam(learning_rate=config['learning_rate']), 
                     metrics=['accuracy']
                 )
-                
+                z_imgs_val = encoder.predict(x_val)
+                z_imgs_test = encoder.predict(x_test)
                 # Prepare data
                 x_val_ = z_imgs_val
                 y_val_ = y_val
