@@ -12,7 +12,7 @@ from sklearn.metrics import confusion_matrix
 
 
 # STAGE 1: Train Autoencoder (To wait for the reconstruction losses to converge before training the AI4CellFate model)
-def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, discriminator=None, output_dir="./results"):
+def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, discriminator=None, save_everything=False, output_dir="./results"):
     """Train the adversarial autoencoder with optional validation monitoring."""
     
     # Set random seeds for reproducibility
@@ -135,14 +135,15 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
                   f"Reconstruction loss: {avg_recon_loss:.4f}, "
                   f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
     
-    # Save loss plots with validation losses if available
-    if x_val is not None:
-        save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, 
-                                   val_reconstruction_losses, val_adversarial_losses,
-                                   output_dir=f"{output_dir}/loss_plots_stage1")
-    else:
-        save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, 
-                                   output_dir=f"{output_dir}/loss_plots_stage1")
+    if save_everything:
+        # Save loss plots with validation losses if available
+        if x_val is not None:
+            save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, 
+                                    val_reconstruction_losses, val_adversarial_losses,
+                                    output_dir=f"{output_dir}/loss_plots_stage1")
+        else:
+            save_loss_plots_autoencoder(reconstruction_losses, adversarial_losses, 
+                                    output_dir=f"{output_dir}/loss_plots_stage1")
 
     return {
         'encoder': encoder,
@@ -156,7 +157,7 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
 
 
 # STAGE 2: Train AI4CellFate: Autoencoder + Covariance + Contrastive (Engineered Latent Space)
-def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_val, y_val, x_test, y_test, output_dir="./results"):
+def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_val, y_val, x_test, y_test, save_everything=False, output_dir="./results"):
     """Train the AI4CellFate model with the autoencoder, covariance, and contrastive loss."""
 
     config = convert_namespace_to_dict(config)
@@ -298,17 +299,11 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         z_imgs_train = encoder.predict(x_train)
         z_imgs_val = encoder.predict(x_val)
         z_imgs_test = encoder.predict(x_test)
-        centroid_class_0 = np.mean(z_imgs_train[y_train == 0], axis=0) 
-        centroid_class_1 = np.mean(z_imgs_train[y_train == 1], axis=0)
-
-        # Compute Euclidean distance between centroids
-        distance = euclidean(centroid_class_0, centroid_class_1)
         kl_divergence = calculate_kl_divergence(z_imgs_train)
         print("kl_divergence[0]:", kl_divergence[0], "kl_divergence[1]:", kl_divergence[1])
 
         if (kl_divergence[0] < 1 and kl_divergence[1] < 1) or epoch == config['epochs'] - 1: 
             print("Latent Space is Gaussian-distributed!")
-            print("Eucledian distance:", distance)
 
             # Compute classification accuracy and use it as a stopping criterion
             try:
@@ -356,22 +351,28 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
                 if (mean_diagonal >= 0.65 and precision >= 0.7) or epoch == config['epochs'] - 1:
                     print("Classification accuracy is good! :)")
                     good_conditions_stop.append(epoch)
-                    # Save confusion matrix
-                    save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
-                    
-                    # Save additional latent space analysis files
-                    # 1. Covariance matrix of latent features
-                    latent_cov_matrix = np.cov(z_imgs_train.T)
-                    np.save(os.path.join(output_dir, f"latent_covariance_matrix_epoch_{epoch}.npy"), latent_cov_matrix)
-                    
-                    # 2. Correlation coefficient matrix of latent features
-                    latent_corrcoef = np.corrcoef(z_imgs_train.T)
-                    np.save(os.path.join(output_dir, f"latent_correlation_matrix_epoch_{epoch}.npy"), latent_corrcoef)
-                    
-                    # 3. KL divergences for each dimension
-                    kl_divergences_array = np.array(kl_divergence)
-                    np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
-                    
+                    if save_everything:
+                        # Save confusion matrix
+                        save_confusion_matrix(conf_matrix_normalized, output_dir, epoch)
+                        
+                        # Save additional latent space analysis files
+                        # 1. Covariance matrix of latent features
+                        latent_cov_matrix = np.cov(z_imgs_train.T)
+                        np.save(os.path.join(output_dir, f"latent_covariance_matrix_epoch_{epoch}.npy"), latent_cov_matrix)
+                        
+                        # 2. Correlation coefficient matrix of latent features
+                        latent_corrcoef = np.corrcoef(z_imgs_train.T)
+                        np.save(os.path.join(output_dir, f"latent_correlation_matrix_epoch_{epoch}.npy"), latent_corrcoef)
+                        
+                        # 3. KL divergences for each dimension
+                        kl_divergences_array = np.array(kl_divergence)
+                        np.save(os.path.join(output_dir, f"kl_divergences_epoch_{epoch}.npy"), kl_divergences_array)
+                        
+                    centroid_class_0 = np.mean(z_imgs_train[y_train == 0], axis=0) 
+                    centroid_class_1 = np.mean(z_imgs_train[y_train == 1], axis=0)
+
+                    # Compute Euclidean distance between centroids
+                    distance = euclidean(centroid_class_0, centroid_class_1)
                     if (epoch > 50 or epoch == config['epochs'] - 1) and distance > 0.5: 
                         
                         print(f"Saved latent analysis files: covariance, correlation, KL divergences for epoch {epoch}")
@@ -399,16 +400,16 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
               f"Train - Recon: {avg_recon_loss:.4f}, Adv: {avg_adv_loss:.4f}, Contr: {avg_contra_loss:.4f}, Cov: {avg_cov_loss:.4f} | "
               f"Val - Recon: {val_reconstruction_losses[-1]:.4f}, Adv: {val_adversarial_losses[-1]:.4f}, Contr: {val_contra_losses[-1]:.4f}, Cov: {val_cov_losses[-1]:.4f}")
     
-    if save_loss_plot:
+    
+    if save_everything:
         save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, contra_losses, 
                            val_reconstruction_losses, val_adversarial_losses, val_cov_losses, val_contra_losses,
                            output_dir=f"{output_dir}/loss_plots_stage2")
-
-    # Generate and save latent feature interpretations
-    print("Generating latent feature interpretations...")
-    z_train_final = encoder.predict(x_train, verbose=0)
-    save_interpretations(decoder, z_train_final, output_dir=f"{output_dir}/interpretations")
-    print("final confusion matrix:", conf_matrix_normalized)
+        # Generate and save latent feature interpretations
+        print("Generating latent feature interpretations...")
+        z_train_final = encoder.predict(x_train, verbose=0)
+        save_interpretations(decoder, z_train_final, output_dir=f"{output_dir}/interpretations")
+        print("final confusion matrix:", conf_matrix_normalized)
     return {
         'encoder': encoder,
         'decoder': decoder,

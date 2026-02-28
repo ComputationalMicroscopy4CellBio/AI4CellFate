@@ -71,10 +71,10 @@ def main():
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
                    f"_lcon{config_ai4cellfate['lambda_contra']}")
     
-    output_base_dir = f"./results/trying_new_requirements/{folder_name}"
+    output_base_dir = f"./new_final/{folder_name}"
     print(f"Saving results to: {output_base_dir}")
 
-    lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, output_dir=output_base_dir)
+    lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, save_everything=True, output_dir=output_base_dir)
     encoder = lambda_autoencoder_results['encoder']
     decoder = lambda_autoencoder_results['decoder']
     discriminator = lambda_autoencoder_results['discriminator']
@@ -83,7 +83,7 @@ def main():
     # Evaluate the trained model (store latent space and reconstructed images)
     evaluate_model(encoder, decoder, augmented_x_train, augmented_y_train, output_dir=f"{output_base_dir}/stage1")
     
-    lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test, output_dir=output_base_dir) 
+    lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test, save_everything=True, output_dir=output_base_dir) 
     encoder = lambda_ae_cov_results['encoder']
     decoder = lambda_ae_cov_results['decoder']
     discriminator = lambda_ae_cov_results['discriminator']
