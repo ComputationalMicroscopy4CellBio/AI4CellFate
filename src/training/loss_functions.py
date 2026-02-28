@@ -205,19 +205,18 @@ def ms_ssim(img1, img2, power_factors=[0.0448, 0.2856, 0.3001, 0.2363, 0.1333], 
     img2 = tf.cast(img2, tf.float32)  # Ensure float32
 
     msssim = []
-    weights = tf.constant(power_factors, dtype=tf.float32)
 
-    for weight in weights[:-1]:  # Loop over all but the last scale
+    # Iterate over the Python list directly so AutoGraph unrolls the loop at
+    # trace time (img1/img2 change shape each iteration due to downsampling).
+    for weight in power_factors[:-1]:
         ssim_map = ssim_single_scale(img1, img2, filter_size=filter_size, filter_sigma=filter_sigma, L=L)
         msssim.append(weight * tf.reduce_mean(ssim_map))
 
-        # Downsample the images
         img1 = tf.nn.avg_pool2d(img1, ksize=2, strides=2, padding="VALID")
         img2 = tf.nn.avg_pool2d(img2, ksize=2, strides=2, padding="VALID")
 
-    # Compute SSIM for the final scale
     final_ssim = ssim_single_scale(img1, img2, filter_size=filter_size, filter_sigma=filter_sigma, L=L)
-    msssim.append(weights[-1] * tf.reduce_mean(final_ssim))
+    msssim.append(power_factors[-1] * tf.reduce_mean(final_ssim))
 
     return tf.reduce_sum(msssim)
 
