@@ -10,19 +10,173 @@ def convert_namespace_to_dict(config): # TEMPORARY: Helper function to convert N
         return {key: getattr(config, key) for key in vars(config)}
     return config # If it's already a dictionary, return as is
 
-def set_seed(seed):
-    """Set the random seed for reproducibility."""
-    np.random.seed(seed)
-    tf.random.set_seed(seed)
-    import random
-    random.seed(seed)
+def configure_gpu():
+    """Configure TensorFlow to use GPU if available."""
+    print(f"TensorFlow version: {tf.__version__}")
+    
+    # Check for GPUs
+    gpus = tf.config.list_physical_devices('GPU')
+    
+    if gpus:
+        try:
+            # Enable memory growth to avoid allocating all GPU memory at once
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            print(f"✓ GPU detected: {len(gpus)} GPU(s) available")
+            for i, gpu in enumerate(gpus):
+                print(f"  - GPU {i}: {gpu.name}")
+            return True, len(gpus)
+        except RuntimeError as e:
+            print(f"GPU configuration error: {e}")
+            return False, 0
+    else:
+        print("⚠ No GPU detected by TensorFlow.")
+        print("  Diagnostic information:")
+        
+        # Check if CUDA is available in the system
+        import subprocess
+        try:
+            nvidia_smi = subprocess.check_output(['nvidia-smi'], stderr=subprocess.STDOUT).decode('utf-8')
+            print("  ✓ nvidia-smi found - CUDA driver is installed")
+            # Extract GPU info from nvidia-smi
+            if 'NVIDIA-SMI' in nvidia_smi:
+                print("  ⚠ GPU hardware detected but TensorFlow can't see it.")
+                print("  Possible solutions:")
+                print("    1. Install CUDA toolkit and cuDNN:")
+                print("       - For TensorFlow 2.17.0, you need CUDA 12.x and cuDNN 9.x")
+                print("    2. Install tensorflow with GPU support:")
+                print("       pip install tensorflow[and-cuda]")
+                print("    3. Or use conda/mamba:")
+                print("       conda install -c conda-forge tensorflow-gpu")
+                print("    4. Check CUDA environment variables:")
+                print("       echo $CUDA_HOME")
+                print("       echo $LD_LIBRARY_PATH")
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            print("  ✗ nvidia-smi not found - CUDA driver may not be installed")
+            print("  Install NVIDIA drivers first: https://www.nvidia.com/drivers")
+        
+        # Check TensorFlow build info
+        try:
+            build_info = tf.sysconfig.get_build_info()
+            print(f"  TensorFlow built with CUDA: {build_info.get('cuda_version', 'Unknown')}")
+            print(f"  TensorFlow built with cuDNN: {build_info.get('cudnn_version', 'Unknown')}")
+        except:
+            pass
+        
+        print("  Training will use CPU (this will be slow).")
+        return False, 0
 
-def save_model_weights_to_disk(encoder, decoder, discriminator, output_dir):
-    """Save model weights to disk."""
+def get_distribution_strategy(num_gpus=None):
+    """
+    Get TensorFlow distribution strategy for multi-GPU training.
+    
+    Args:
+        num_gpus: Number of GPUs to use. If None, uses all available GPUs.
+    
+    Returns:
+        Distribution strategy object
+    """
+    gpus = tf.config.list_physical_devices('GPU')
+    
+    if not gpus:
+        print("No GPUs found, using default strategy (CPU or single GPU)")
+        return tf.distribute.get_strategy()
+    
+    if num_gpus is None:
+        num_gpus = len(gpus)
+    
+    if num_gpus == 1:
+        print("Using single GPU")
+        return tf.distribute.get_strategy()
+    elif num_gpus > 1:
+        print(f"Using MirroredStrategy with {num_gpus} GPUs")
+        return tf.distribute.MirroredStrategy(devices=[f'/GPU:{i}' for i in range(num_gpus)])
+    else:
+        return tf.distribute.get_strategy()
+
+def set_seed(seed):
+    """
+    Set the random seed for full reproducibility across CPU and GPU.
+    
+    This function configures:
+    - Python's random module
+    - NumPy random state
+    - TensorFlow random operations
+    - CUDA/cuDNN deterministic behavior
+    - Suppresses TensorFlow warnings
+    
+    Note: Threading configuration can only be set once before TensorFlow initializes.
+    Subsequent calls will skip threading config but still set all random seeds.
+    Safe to call multiple times (e.g., once per training stage).
+    
+    Args:
+        seed: Integer seed value for reproducibility
+    """
+    import os
+    import random
+    
+    # Suppress TensorFlow warnings and info messages
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0=all, 1=filter INFO, 2=filter INFO+WARNING, 3=filter all
+    tf.get_logger().setLevel('ERROR')  # Only show errors, not warnings
+    
+    # Set Python random seed
+    random.seed(seed)
+    
+    # Set NumPy random seed
+    np.random.seed(seed)
+    
+    # Set TensorFlow random seed
+    tf.random.set_seed(seed)
+    
+    # Make cuDNN use deterministic algorithms (safe with SpectralNormalization)
+    os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+    
+    # NOTE: TF_DETERMINISTIC_OPS=1 and enable_op_determinism() are intentionally
+    # NOT set here — they require deterministic SVD on GPU, which is unimplemented
+    # for 1-column matrices and crashes SpectralNormalization layers.
+    
+    # Disable TensorFlow's use of multithreading for determinism
+    # Note: This can only be set before TensorFlow initializes
+    try:
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+    except RuntimeError:
+        # Threading config was already set (TensorFlow already initialized)
+        # This is expected on subsequent calls to set_seed()
+        pass
+    
+    # Set Keras global random seed (covers weight init and dropout)
+    try:
+        tf.keras.utils.set_random_seed(seed)
+    except AttributeError:
+        pass
+    
+    print(f"✓ Seed set to {seed} with deterministic operations enabled")
+
+def save_model_weights_to_disk(encoder, decoder, discriminator, output_dir, epoch=None):
+    """
+    Save model weights to disk.
+    
+    Args:
+        encoder: Encoder model
+        decoder: Decoder model
+        discriminator: Discriminator model
+        output_dir: Directory to save weights
+        epoch: Optional epoch number to include in filename (e.g., "encoder_epoch10.weights.h5")
+               If None, saves as "encoder.weights.h5" (default behavior)
+    """
     os.makedirs(output_dir, exist_ok=True)
-    encoder.save_weights(os.path.join(output_dir, "encoder.weights.h5"))
-    decoder.save_weights(os.path.join(output_dir, "decoder.weights.h5"))
-    discriminator.save_weights(os.path.join(output_dir, "discriminator.weights.h5"))
+    
+    if epoch is not None:
+        encoder.save_weights(os.path.join(output_dir, f"encoder_epoch{epoch}.weights.h5"))
+        decoder.save_weights(os.path.join(output_dir, f"decoder_epoch{epoch}.weights.h5"))
+        discriminator.save_weights(os.path.join(output_dir, f"discriminator_epoch{epoch}.weights.h5"))
+        print(f"✓ Model weights saved for epoch {epoch} to {output_dir}")
+    else:
+        encoder.save_weights(os.path.join(output_dir, "encoder.weights.h5"))
+        decoder.save_weights(os.path.join(output_dir, "decoder.weights.h5"))
+        discriminator.save_weights(os.path.join(output_dir, "discriminator.weights.h5"))
+        print(f"✓ Model weights saved to {output_dir}")
 
 def load_model_weights_from_disk(encoder, decoder, discriminator, output_dir):
     """Load model weights from disk."""
