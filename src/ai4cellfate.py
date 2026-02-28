@@ -10,12 +10,12 @@ frame_index = 1
 def load_data():
     """Load training and testing data."""
     
-    augmented_x_train = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/train_images_aug.npy')[:, frame_index, :, :]
-    augmented_y_train = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/train_labels_aug.npy')
-    x_val = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_images.npy')[:, frame_index, :, :]
-    y_val = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_labels.npy')
-    x_test = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_images.npy')[:, frame_index, :, :]
-    y_test = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_labels.npy')
+    augmented_x_train = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/train_images_aug.npy")[:,frame_index]
+    augmented_y_train = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/train_labels_aug.npy")
+    x_val = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/test_images.npy")[:,frame_index]
+    y_val = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/test_labels.npy")
+    x_test = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/test_images.npy")[:,frame_index]
+    y_test = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/test_labels.npy")
     
     print(f"Augmented train set: {augmented_x_train.shape[0]} samples")
     print(f"Augmented train labels: {augmented_y_train.shape[0]} samples")
@@ -71,7 +71,7 @@ def main():
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
                    f"_lcon{config_ai4cellfate['lambda_contra']}_frame{frame_index}")
     
-    output_base_dir = f"./results/processed_data/{folder_name}"
+    output_base_dir = f"./results/final/{folder_name}"
     print(f"Saving results to: {output_base_dir}")
 
     lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, output_dir=output_base_dir)

@@ -128,9 +128,12 @@ def set_seed(seed):
     # Set TensorFlow random seed
     tf.random.set_seed(seed)
     
-    # Configure TensorFlow for deterministic operations
-    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+    # Make cuDNN use deterministic algorithms (safe with SpectralNormalization)
     os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+    
+    # NOTE: TF_DETERMINISTIC_OPS=1 and enable_op_determinism() are intentionally
+    # NOT set here — they require deterministic SVD on GPU, which is unimplemented
+    # for 1-column matrices and crashes SpectralNormalization layers.
     
     # Disable TensorFlow's use of multithreading for determinism
     # Note: This can only be set before TensorFlow initializes
@@ -142,15 +145,13 @@ def set_seed(seed):
         # This is expected on subsequent calls to set_seed()
         pass
     
-    # Enable deterministic operations in TensorFlow (TF 2.8+)
+    # Set Keras global random seed (covers weight init and dropout)
     try:
         tf.keras.utils.set_random_seed(seed)
-        tf.config.experimental.enable_op_determinism()
     except AttributeError:
-        # Fallback for older TensorFlow versions
         pass
     
-    print(f"✓ Seed set to {seed} with deterministic GPU operations enabled")
+    print(f"✓ Seed set to {seed} with deterministic operations enabled")
 
 def save_model_weights_to_disk(encoder, decoder, discriminator, output_dir, epoch=None):
     """
