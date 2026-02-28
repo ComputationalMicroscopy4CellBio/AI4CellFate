@@ -36,39 +36,32 @@ class Decoder:
         """
         Build the decoder model architecture with controlled feature expansion.
         
-        Dimensional flow (mirrors encoder in reverse):
-        - Input: 2 latent features
-        - Dense: 2 → 400 features (5×5×16)
-        - Reshape: 400 → (5, 5, 16) (restore spatial structure)
-        - res_block_up: (5, 5, 16) → (10, 10, 8) = 800 features (2x expansion, brief)
-        - res_block_up: (10, 10, 8) → (20, 20, 2) = 800 features (maintains 2x)
-        - Conv: (20, 20, 2) → (20, 20, 1) = 400 features (final image)
-        
-        Key features:
-        1. Symmetric with encoder for optimal reconstruction
-        2. Peak expansion matches encoder (2x input size)
-        3. Gradual spatial upsampling preserves structure
-        4. Controlled channel progression maintains quality
-        5. Addresses reviewer concerns while maintaining reconstruction fidelity
-        
         Returns:
             tf.keras.Model: The built decoder model.
         """
+        if self.img_shape[0] == 20:
+            last_conv_shape = (5, 5, 16)
+            up_filters = [8, 2]
+        else:
+            last_conv_shape = (36, 36, 128)
+            up_filters = [64, 32]
+
         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
-        last_conv_shape = (5, 5, 16)
         X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
         X = Reshape((last_conv_shape[0], last_conv_shape[1], last_conv_shape[2]))(X)
 
-        X = self.res_block_up(X, 8)
+        X = self.res_block_up(X, up_filters[0])
         X = Dropout(0.3)(X)
-        X = self.res_block_up(X, 2)
+        X = self.res_block_up(X, up_filters[1])
         X = Dropout(0.3)(X)
 
         X = SpectralNormalization(Conv2D(self.img_shape[2], (3, 3), strides=(1, 1), padding='same', activation='sigmoid'))(X)
         decoder_model = Model(dec_input, X, name='decoder')
 
         return decoder_model
+
+
 
     def res_block_up(self, layer_input, filters):
         """

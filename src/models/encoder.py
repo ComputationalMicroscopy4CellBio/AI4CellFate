@@ -37,30 +37,17 @@ class Encoder:
     def build_encoder(self):
         """
         Build the encoder model architecture with controlled feature expansion.
-        
-        Dimensional flow (reviewer-friendly, max 400 features):
-        - Input: (20, 20, 1) = 400 pixels
-        - Conv: (20, 20, 2) = 800 features (2x expansion, brief)
-        - res_block_down: (10, 10, 4) = 400 features (same as input!)
-        - res_block_down: (5, 5, 8) = 200 features (0.5x input)
-        - Flatten: 200 features
-        - Dense: 200 → 2 latent features
-        
-        Key features:
-        1. Peak expansion of only 2x input size (800 vs original 6400+)
-        2. Quickly returns to input size (400 features) 
-        3. Final spatial representation smaller than input (200 features)
-        4. Preserves spatial structure through residual blocks
-        5. Addresses reviewer concerns while maintaining architecture quality
-        
+          
         Returns:
             tf.keras.Model: The built encoder model.
         """
+        filters = [2, 8, 16] if self.img_shape[0] == 20 else [32, 64, 128]
+
         enc_input = Input(shape=(self.img_shape[0], self.img_shape[1], self.img_shape[2]), name='encoder_input')
-        X = SpectralNormalization(Conv2D(2, kernel_size=3, padding='same', activation='relu'))(enc_input)
-        X = self.res_block_down(X, 8)
+        X = SpectralNormalization(Conv2D(filters[0], kernel_size=3, padding='same', activation='relu'))(enc_input)
+        X = self.res_block_down(X, filters[1])
         X = Dropout(0.3)(X)
-        X = self.res_block_down(X, 16)
+        X = self.res_block_down(X, filters[2])
         X = Dropout(0.3)(X)
 
         X = Flatten()(X)
@@ -73,6 +60,8 @@ class Encoder:
         encoder_model = Model(enc_input, z, name='encoder') 
 
         return encoder_model
+
+
 
     def res_block_down(self, layer_input, filters):
         """
