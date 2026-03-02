@@ -3,7 +3,7 @@ import numpy as np
 import os
 from matplotlib import pyplot as plt
 from ..utils import *
-from ..evaluation.evaluate import calculate_kl_divergence, save_interpretations, save_confusion_matrix
+from ..evaluation.evaluate import calculate_kl_divergence, save_interpretations, save_confusion_matrix, save_latent_space, save_reconstruction_images
 from ..models import Encoder, Decoder, mlp_classifier, Discriminator
 from .loss_functions import *
 from scipy.spatial.distance import euclidean
@@ -133,8 +133,13 @@ def train_autoencoder(config, x_train, x_val=None, encoder=None, decoder=None, d
         else:
             print(f"Epoch {epoch + 1}/{config['epochs']}: "
                   f"Reconstruction loss: {avg_recon_loss:.4f}, "
-                  f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
-    
+                 f"Adversarial loss: {avg_adv_loss:.4f}, lambda recon: {lambda_recon:.4f}, lambda adv: {lambda_adv:.4f}")
+       
+        if save_everything:
+            z_imgs_train = encoder.predict(x_train)
+            save_reconstruction_images(x_train, decoder.predict(z_imgs_train), epoch, output_dir=f"{output_dir}/reconstructions")
+            save_interpretations(decoder, z_imgs_train, epoch, output_dir=f"{output_dir}/interpretations")
+
     if save_everything:
         # Save loss plots with validation losses if available
         if x_val is not None:
@@ -302,7 +307,10 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
 
         if (kl_divergence[0] < 1 and kl_divergence[1] < 1) or epoch == config['epochs'] - 1: 
             print("Latent Space is Gaussian-distributed!")
-
+            if save_everything:
+                save_reconstruction_images(x_train, decoder.predict(z_imgs_train), epoch, output_dir=f"{output_dir}/reconstructions")
+                save_interpretations(decoder, z_imgs_train, epoch, output_dir=f"{output_dir}/interpretations")
+                save_latent_space(z_imgs_train, y_train, epoch, output_dir=f"{output_dir}/latent_space")
             # Compute classification accuracy and use it as a stopping criterion
             try:
                 # Train the classifier
@@ -404,10 +412,6 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
         save_loss_plots_cov(reconstruction_losses, adversarial_losses, cov_losses, contra_losses, 
                            val_reconstruction_losses, val_adversarial_losses, val_cov_losses, val_contra_losses,
                            output_dir=f"{output_dir}/loss_plots_stage2")
-        # Generate and save latent feature interpretations
-        print("Generating latent feature interpretations...")
-        z_train_final = encoder.predict(x_train, verbose=0)
-        save_interpretations(decoder, z_train_final, output_dir=f"{output_dir}/interpretations")
         print("final confusion matrix:", conf_matrix_normalized)
     return {
         'encoder': encoder,
