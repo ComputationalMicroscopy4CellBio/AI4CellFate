@@ -439,10 +439,8 @@ def save_interpretations(decoder, latent_space, epoch, output_dir, num_steps=7):
 def evaluate_model(encoder, decoder, x_train, y_train, output_dir):
     """Evaluate the trained model."""
     evaluator = Evaluation(output_dir)
-    
-    # Add channel dimension for encoder input
-    x_train_expanded = np.expand_dims(x_train, axis=-1)
-    z_imgs = encoder.predict(x_train_expanded)
+
+    z_imgs = encoder.predict(x_train)
     recon_imgs = decoder.predict(z_imgs)
     
     # Get reconstruction images
@@ -459,6 +457,7 @@ def evaluate_model(encoder, decoder, x_train, y_train, output_dir):
 
 def save_latent_space(latent_space, y_train, epoch, output_dir):
     """Visualize and save latent space features for a specific epoch."""
+    os.makedirs(output_dir, exist_ok=True)
     cor_vals = [np.corrcoef(np.eye(2)[y_train][:, 0], latent_space[:, i])[0, 1] for i in range(latent_space.shape[1])]
     cor_vals = np.array(cor_vals)
     feat_0, feat_1 = np.argsort(np.abs(cor_vals))[-2:]  # Find top 2 correlated features
@@ -491,6 +490,8 @@ def save_latent_space(latent_space, y_train, epoch, output_dir):
 
 def save_reconstruction_images(image_batch, recon_imgs, epoch, output_dir, n=10):
     """Visualize and save original and reconstructed images for a specific epoch."""
+
+    os.makedirs(output_dir, exist_ok=True)
     plt.figure(figsize=(20, 4))
     for i in range(n):
         # Display original
