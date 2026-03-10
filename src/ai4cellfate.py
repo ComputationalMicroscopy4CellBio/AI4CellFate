@@ -10,12 +10,12 @@ frame_index = 1
 def load_data():
     """Load training and testing data."""
     
-    augmented_x_train = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/train_images_aug.npy")[:,frame_index]
-    augmented_y_train = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/train_labels_aug.npy")
-    x_val = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/test_images.npy")[:,frame_index]
-    y_val = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/test_labels.npy")
-    x_test = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/test_images.npy")[:,frame_index]
-    y_test = np.load("/Volumes/InesSeagate/PhotoFate/16Feb/test_labels.npy")
+    augmented_x_train = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/x_train_aug.npy")[:,frame_index]
+    augmented_y_train = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/y_train_aug.npy")
+    x_val = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/x_val.npy")[:,frame_index]
+    y_val = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/y_val.npy")
+    x_test = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/x_test.npy")[:,frame_index]
+    y_test = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/y_test.npy")
     
     print(f"Augmented train set: {augmented_x_train.shape[0]} samples")
     print(f"Augmented train labels: {augmented_y_train.shape[0]} samples")
@@ -61,7 +61,7 @@ def main():
         'lambda_recon': 6,
         'lambda_adv': 2,
         'lambda_cov': 1, #1
-        'lambda_contra': 0.2,  #8
+        'lambda_contra': 0.1,  #8
     }
 
     # Create parameter-based folder name
@@ -71,7 +71,7 @@ def main():
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
                    f"_lcon{config_ai4cellfate['lambda_contra']}_frame{frame_index}")
     
-    output_base_dir = f"./results/new_train/{folder_name}"
+    output_base_dir = f"./results/split_data/{folder_name}"
     print(f"Saving results to: {output_base_dir}")
 
     lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, save_everything=True, output_dir=output_base_dir)

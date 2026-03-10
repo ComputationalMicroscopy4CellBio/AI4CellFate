@@ -43,18 +43,26 @@ class Encoder:
         - Conv: (144, 144, 32) 
         - res_block_down: (72, 72, 64)
         - res_block_down: (36, 36, 128)
-        - Flatten: 165888 features
-        - Dense: 165888 → latent_dim features
+        - res_block_down: (18, 18, 256)
+        - Flatten: 82944 features
+        - Dense: 82944 → 256 (intermediate compression)
+        - Dense: 256 → latent_dim
         
-        Key features:
-        1. Two downsampling stages for a simpler encoder
-        2. Increased filter progression (32→64→128) for better shape capture
-        3. Maintains architectural quality with spectral normalization
+        Dimensional flow for 20x20 images:
+        - Input: (20, 20, 1)
+        - Conv: (20, 20, 2)
+        - res_block_down: (10, 10, 8)
+        - res_block_down: (5, 5, 16)
+        - Flatten: 400 features
+        - Dense: 400 → latent_dim features
         
         Returns:
             tf.keras.Model: The built encoder model.
         """
-        filters = [2, 8, 16] if self.img_shape[0] == 20 else [32, 64, 128]
+        if self.img_shape[0] == 20:
+            filters = [2, 8, 16]
+        else:
+            filters = [32, 64, 128, 256]
 
         enc_input = Input(shape=(self.img_shape[0], self.img_shape[1], self.img_shape[2]), name='encoder_input')
         X = SpectralNormalization(Conv2D(filters[0], kernel_size=3, padding='same', activation='relu'))(enc_input)
@@ -63,9 +71,17 @@ class Encoder:
         X = self.res_block_down(X, filters[2])
         X = Dropout(0.3)(X)
 
+        if self.img_shape[0] != 20:
+            X = self.res_block_down(X, filters[3])
+            X = Dropout(0.3)(X)
+
         X = Flatten()(X)
         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
         X = Activation('swish')(X)
+
+        # if self.img_shape[0] != 20:
+        #     X = SpectralNormalization(Dense(256))(X)
+        #     X = Activation('swish')(X)
 
         z = SpectralNormalization(Dense(self.latent_dim))(X)
         z = GaussianNoise(stddev=self.gaussian_noise_std)(z)

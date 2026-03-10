@@ -38,16 +38,21 @@ class Decoder:
         
         Dimensional flow for 144x144 images (mirrors encoder in reverse):
         - Input: latent_dim features
-        - Dense: latent_dim → 165888 features (36×36×128)
-        - Reshape: 165888 → (36, 36, 128) (restore spatial structure)
+        - Dense: latent_dim → 256 (intermediate expansion)
+        - Dense: 256 → 82944 features (18×18×256)
+        - Reshape: 82944 → (18, 18, 256)
+        - res_block_up: (18, 18, 256) → (36, 36, 128)
         - res_block_up: (36, 36, 128) → (72, 72, 64)
         - res_block_up: (72, 72, 64) → (144, 144, 32)
         - Conv: (144, 144, 32) → (144, 144, 1) (final image)
         
-        Key features:
-        1. Symmetric with encoder for optimal reconstruction
-        2. Exactly 2 upsampling blocks to get 36→72→144
-        3. Increased channel progression (128→64→32) for better shape reconstruction
+        Dimensional flow for 20x20 images:
+        - Input: latent_dim features
+        - Dense: latent_dim → 400 features (5×5×16)
+        - Reshape: 400 → (5, 5, 16)
+        - res_block_up: (10, 10, 8)
+        - res_block_up: (20, 20, 2)
+        - Conv: (20, 20, 1)
         
         Returns:
             tf.keras.Model: The built decoder model.
@@ -56,18 +61,24 @@ class Decoder:
             last_conv_shape = (5, 5, 16)
             up_filters = [8, 2]
         else:
-            last_conv_shape = (36, 36, 128)
-            up_filters = [64, 32]
+            last_conv_shape = (18, 18, 256)
+            up_filters = [128, 64, 32]
 
         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
-        X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
+
+        if self.img_shape[0] != 20:
+            # X = SpectralNormalization(Dense(256))(dec_input)
+            # X = Activation('swish')(X)
+            X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
+        else:
+            X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
+
         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
         X = Reshape((last_conv_shape[0], last_conv_shape[1], last_conv_shape[2]))(X)
 
-        X = self.res_block_up(X, up_filters[0])
-        X = Dropout(0.3)(X)
-        X = self.res_block_up(X, up_filters[1])
-        X = Dropout(0.3)(X)
+        for f in up_filters:
+            X = self.res_block_up(X, f)
+            X = Dropout(0.3)(X)
 
         X = SpectralNormalization(Conv2D(self.img_shape[2], (3, 3), strides=(1, 1), padding='same', activation='sigmoid'))(X)
         decoder_model = Model(dec_input, X, name='decoder')
