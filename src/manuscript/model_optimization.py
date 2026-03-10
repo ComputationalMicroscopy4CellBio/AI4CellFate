@@ -11,12 +11,12 @@ frame_index = 1
 def load_data():
     """Load training and testing data."""
     
-    augmented_x_train = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/train_images_aug.npy')[:, frame_index, :, :]
-    augmented_y_train = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/train_labels_aug.npy')
-    x_val = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_images.npy')[:, frame_index, :, :]
-    y_val = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_labels.npy')
-    x_test = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_images.npy')[:, frame_index, :, :]
-    y_test = np.load('/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/test_labels.npy')
+    augmented_x_train = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/x_train_aug.npy")[:,frame_index]
+    augmented_y_train = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/y_train_aug.npy")
+    x_val = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/x_val.npy")[:,frame_index]
+    y_val = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/y_val.npy")
+    x_test = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/x_test.npy")[:,frame_index]
+    y_test = np.load("/proj/cmcb/projects/AI4CellFate/AI4CellFate/data/y_test.npy")
     
     print(f"Augmented train set: {augmented_x_train.shape[0]} samples")
     print(f"Augmented train labels: {augmented_y_train.shape[0]} samples")
@@ -38,14 +38,14 @@ def run_single_configuration(config_autoencoder, config_ai4cellfate, augmented_x
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
                    f"_lcon{config_ai4cellfate['lambda_contra']}_frame{frame_index}")
     
-    output_base_dir = f"./results/final_model_optimisation/{folder_name}"
+    output_base_dir = f"./results/split_model_optimisation/{folder_name}"
     print(f"Running configuration: {folder_name}")
     print(f"Saving results to: {output_base_dir}")
 
     try:
         ##### STAGE 1 #####
         print("Starting Stage 1 training...")
-        lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, output_dir=output_base_dir)
+        lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, save_everything=True, output_dir=output_base_dir)
         encoder = lambda_autoencoder_results['encoder']
         decoder = lambda_autoencoder_results['decoder']
         discriminator = lambda_autoencoder_results['discriminator']
@@ -56,7 +56,7 @@ def run_single_configuration(config_autoencoder, config_ai4cellfate, augmented_x
         
         ##### STAGE 2 #####
         print("Starting Stage 2 training...")
-        lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test, output_dir=output_base_dir) 
+        lambda_ae_cov_results = train_cellfate(config_ai4cellfate, encoder, decoder, discriminator, augmented_x_train, augmented_y_train, x_val, y_val, x_test, y_test, save_everything=True, output_dir=output_base_dir) 
         encoder = lambda_ae_cov_results['encoder']
         decoder = lambda_ae_cov_results['decoder']
         discriminator = lambda_ae_cov_results['discriminator']
@@ -95,10 +95,10 @@ def run_model_optimization():
     augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test = load_data()
     
     # Define hyperparameter search space
-    seeds = [44] #42, 43, 
+    seeds = [42] #42, 43, 
     latent_dims = [2] #2, 
-    lambda_contras = [0.0] #, 0.2#0.01, 0.05, 0.2, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
-    lambda_covs = [0.0] #, 1.0#0.1, , 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
+    lambda_contras = [0.1, 0.2, 0.3] #, 0.2#0.01, 0.05, 0.2, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
+    lambda_covs = [1, 1.2, 1.5, 1.8, 2.0] #, 1.0#0.1, , 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
     
     # Base configuration for Stage 1 (autoencoder)
     base_config_autoencoder = {

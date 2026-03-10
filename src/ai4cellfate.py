@@ -60,7 +60,7 @@ def main():
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 2,
-        'lambda_cov': 1, #1
+        'lambda_cov': 10, #1
         'lambda_contra': 0.1,  #8
     }
 

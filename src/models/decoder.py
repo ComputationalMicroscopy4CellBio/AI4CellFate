@@ -38,9 +38,9 @@ class Decoder:
         
         Dimensional flow for 144x144 images (mirrors encoder in reverse):
         - Input: latent_dim features
-        - Dense: latent_dim → 256 (intermediate expansion)
-        - Dense: 256 → 82944 features (18×18×256)
-        - Reshape: 82944 → (18, 18, 256)
+        - Dense: latent_dim → 10368 features (18×18×32)
+        - Reshape: 10368 → (18, 18, 32)
+        - 1x1 Conv channel expansion: (18, 18, 256)
         - res_block_up: (18, 18, 256) → (36, 36, 128)
         - res_block_up: (36, 36, 128) → (72, 72, 64)
         - res_block_up: (72, 72, 64) → (144, 144, 32)
@@ -61,20 +61,18 @@ class Decoder:
             last_conv_shape = (5, 5, 16)
             up_filters = [8, 2]
         else:
-            last_conv_shape = (18, 18, 256)
+            last_conv_shape = (18, 18, 64)
             up_filters = [128, 64, 32]
 
         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
-
-        if self.img_shape[0] != 20:
-            # X = SpectralNormalization(Dense(256))(dec_input)
-            # X = Activation('swish')(X)
-            X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
-        else:
-            X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
-
+        X = SpectralNormalization(Dense(last_conv_shape[0] * last_conv_shape[1] * last_conv_shape[2]))(dec_input)
         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)
         X = Reshape((last_conv_shape[0], last_conv_shape[1], last_conv_shape[2]))(X)
+
+        if self.img_shape[0] != 20:
+            # Expand channels back to 256 (mirrors encoder's 1x1 reduction)
+            X = SpectralNormalization(Conv2D(256, kernel_size=1, padding='same'))(X)
+            X = Activation('relu')(X)
 
         for f in up_filters:
             X = self.res_block_up(X, f)
