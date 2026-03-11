@@ -60,8 +60,8 @@ def main():
         'GaussianNoise_std': 0.003,
         'lambda_recon': 6,
         'lambda_adv': 2,
-        'lambda_cov': 10, #1
-        'lambda_contra': 0.1,  #8
+        'lambda_cov': 1, #1
+        'lambda_contra': 0.2,  #8
     }
 
     # Create parameter-based folder name
@@ -71,7 +71,7 @@ def main():
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
                    f"_lcon{config_ai4cellfate['lambda_contra']}_frame{frame_index}")
     
-    output_base_dir = f"./results/split_data/{folder_name}"
+    output_base_dir = f"./results/leaky_relu/{folder_name}"
     print(f"Saving results to: {output_base_dir}")
 
     lambda_autoencoder_results = train_autoencoder(config_autoencoder, augmented_x_train, x_val, save_everything=True, output_dir=output_base_dir)

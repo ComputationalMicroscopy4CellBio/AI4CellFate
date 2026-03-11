@@ -44,9 +44,10 @@ class Encoder:
         - res_block_down: (72, 72, 64)
         - res_block_down: (36, 36, 128)
         - res_block_down: (18, 18, 256)
-        - 1x1 Conv channel reduction: (18, 18, 32)
-        - Flatten: 10368 features
-        - Dense: 10368 → latent_dim
+        - 1x1 Conv channel reduction: (18, 18, 64)
+        - 1x1 Conv channel reduction: (18, 18, 8)
+        - Flatten: 2592 features
+        - Dense: 2592 → latent_dim
         
         Dimensional flow for 20x20 images:
         - Input: (20, 20, 1)
@@ -74,9 +75,11 @@ class Encoder:
         if self.img_shape[0] != 20:
             X = self.res_block_down(X, filters[3])
             X = Dropout(0.3)(X)
-            # Reduce channels before flattening (preserves spatial structure)
+            # Gradual channel reduction (preserves spatial structure at 18x18)
             X = SpectralNormalization(Conv2D(64, kernel_size=1, padding='same'))(X)
-            X = Activation('relu')(X)
+            X = LeakyReLU(alpha=0.2)(X)
+            X = SpectralNormalization(Conv2D(8, kernel_size=1, padding='same'))(X)
+            X = LeakyReLU(alpha=0.2)(X)
 
         X = Flatten()(X)
         X = GaussianNoise(stddev=self.gaussian_noise_std)(X)

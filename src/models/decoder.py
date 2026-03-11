@@ -38,12 +38,13 @@ class Decoder:
         
         Dimensional flow for 144x144 images (mirrors encoder in reverse):
         - Input: latent_dim features
-        - Dense: latent_dim → 10368 features (18×18×32)
-        - Reshape: 10368 → (18, 18, 32)
+        - Dense: latent_dim → 2592 features (18×18×8)
+        - Reshape: 2592 → (18, 18, 8)
+        - 1x1 Conv channel expansion: (18, 18, 64)
         - 1x1 Conv channel expansion: (18, 18, 256)
-        - res_block_up: (18, 18, 256) → (36, 36, 128)
-        - res_block_up: (36, 36, 128) → (72, 72, 64)
-        - res_block_up: (72, 72, 64) → (144, 144, 32)
+        - res_block_up (bilinear): (18, 18, 256) → (36, 36, 128)
+        - res_block_up (bilinear): (36, 36, 128) → (72, 72, 64)
+        - res_block_up (bilinear): (72, 72, 64) → (144, 144, 32)
         - Conv: (144, 144, 32) → (144, 144, 1) (final image)
         
         Dimensional flow for 20x20 images:
@@ -61,7 +62,7 @@ class Decoder:
             last_conv_shape = (5, 5, 16)
             up_filters = [8, 2]
         else:
-            last_conv_shape = (18, 18, 64)
+            last_conv_shape = (18, 18, 8)
             up_filters = [128, 64, 32]
 
         dec_input = Input(shape=(self.latent_dim,), name='decoder_input')
@@ -70,9 +71,11 @@ class Decoder:
         X = Reshape((last_conv_shape[0], last_conv_shape[1], last_conv_shape[2]))(X)
 
         if self.img_shape[0] != 20:
-            # Expand channels back to 256 (mirrors encoder's 1x1 reduction)
+            # Gradual channel expansion (mirrors encoder's 1x1 reduction)
+            X = SpectralNormalization(Conv2D(64, kernel_size=1, padding='same'))(X)
+            X = LeakyReLU(alpha=0.2)(X)
             X = SpectralNormalization(Conv2D(256, kernel_size=1, padding='same'))(X)
-            X = Activation('relu')(X)
+            X = LeakyReLU(alpha=0.2)(X)
 
         for f in up_filters:
             X = self.res_block_up(X, f)
@@ -104,12 +107,12 @@ class Decoder:
             tf.Tensor: Output tensor after applying the residual block.
         """
         d = BatchNormalization()(layer_input)
-        d = Activation('relu')(d)
+        d = Activation('relu')(d) #d = LeakyReLU(alpha=0.2)(d)
         d = UpSampling2D(size=(2, 2), interpolation="nearest")(d)
         d = SpectralNormalization(Conv2D(filters, kernel_size=3, strides=1, padding='same'))(d)
         d = GaussianNoise(stddev=self.gaussian_noise_std)(d)
         d = BatchNormalization()(d)
-        d = Activation('relu')(d)
+        d = Activation('relu')(d) #d = LeakyReLU(alpha=0.2)(d)
         d = SpectralNormalization(Conv2D(filters, kernel_size=3, strides=1, padding='same'))(d)
         d = GaussianNoise(stddev=self.gaussian_noise_std)(d)
         d_res = UpSampling2D(size=(2, 2), interpolation="nearest")(layer_input)

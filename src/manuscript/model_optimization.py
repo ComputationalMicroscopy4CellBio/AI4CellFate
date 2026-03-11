@@ -38,7 +38,7 @@ def run_single_configuration(config_autoencoder, config_ai4cellfate, augmented_x
                    f"_la{config_ai4cellfate['lambda_adv']}_lc{config_ai4cellfate['lambda_cov']}"
                    f"_lcon{config_ai4cellfate['lambda_contra']}_frame{frame_index}")
     
-    output_base_dir = f"./results/split_model_optimisation/{folder_name}"
+    output_base_dir = f"./results/split_new_architecture_optimisation/{folder_name}"
     print(f"Running configuration: {folder_name}")
     print(f"Saving results to: {output_base_dir}")
 
@@ -95,7 +95,7 @@ def run_model_optimization():
     augmented_x_train, x_val, x_test, augmented_y_train, y_val, y_test = load_data()
     
     # Define hyperparameter search space
-    seeds = [42] #42, 43, 
+    seeds = [43, 44] #42, 43, 
     latent_dims = [2] #2, 
     lambda_contras = [0.1, 0.2, 0.3] #, 0.2#0.01, 0.05, 0.2, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
     lambda_covs = [1, 1.2, 1.5, 1.8, 2.0] #, 1.0#0.1, , 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
