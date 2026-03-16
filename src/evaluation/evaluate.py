@@ -382,7 +382,7 @@ def save_interpretations(decoder, latent_space, epoch, output_dir, num_steps=7):
     
     # Find global min/max for consistent colorbar
     all_reconstructions = np.array(all_reconstructions)
-    vmin = all_reconstructions.min() + 0.25
+    vmin = all_reconstructions.min()
     vmax = all_reconstructions.max()
 
     # Handle edge case where all values are identical (e.g. all zeros)
