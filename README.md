@@ -84,8 +84,26 @@ Open `notebooks/AI4CellFate_workflow.ipynb` for the complete workflow with full 
 - **Images**: NumPy arrays with shape `(n_samples, height, width)` 
 - **Labels**: Binary classification labels (0 and 1)
 - **Format**: `.npy` files, normalized to [0,1] range
-- **Recommended**: 20×20 pixel images (adaptable to other sizes)
+- **Supported sizes**: 20×20 to 144×144 pixel images (see Model Adaptation below)
 - **Splits**: Separate train/validation/test sets (60%/20%/20%)
+
+### 📐 Model Adaptation for Different Image Sizes
+
+The architecture **automatically adjusts** based on your input image size — no manual changes needed for 20×20 or 144×144 images.
+
+| Image size | Filters | Res blocks | Notes |
+|---|---|---|---|
+| 20×20 | 2 → 8 → 16 | 2 | Default (low-resolution) |
+| 144×144 | 32 → 64 → 128 → 256 | 3 | Automatic (higher-resolution) |
+
+For **other image sizes**, edit the single line in `src/models/encoder.py` and `src/models/decoder.py`:
+
+```python
+filters = [2, 8, 16]     # for 20×20 images
+filters = [32, 64, 128]  # for intermediate sizes
+```
+
+As a rule of thumb: double the filters at each block, and add an extra residual block for significantly larger images.
 
 ### Training Pipeline
 1. **Stage 1**: Adversarial Autoencoder training for basic reconstruction
