@@ -355,7 +355,7 @@ def train_cellfate(config, encoder, decoder, discriminator, x_train, y_train, x_
 
                 del classifier
                 
-                if (mean_diagonal >= 0.65 and precision >= 0.65) or epoch == config['epochs'] - 1:
+                if (mean_diagonal >= 0.65 and precision >= 0.7) or epoch == config['epochs'] - 1:
                     print("Classification accuracy is good! :)")
                     good_conditions_stop.append(epoch)
                     if save_everything:
